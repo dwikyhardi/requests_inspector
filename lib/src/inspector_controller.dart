@@ -9,7 +9,7 @@ import '../requests_inspector.dart';
 import 'curl_command_generator.dart';
 import 'har_generator.dart';
 import 'json_pretty_converter.dart';
-import 'helpers/inspector_helper.dart';
+import 'helpers/request_search_scanner.dart';
 import 'enums/share_type_enum.dart';
 import 'requests_filter.dart';
 
@@ -182,7 +182,7 @@ class InspectorController extends ChangeNotifier {
           list.where(RequestStatusCodeFilter(_filterStatusCode!).requestFilter);
 
     if (_searchUrlQuery.trim().isNotEmpty)
-      list = list.where(RequestUrlFilter(_searchUrlQuery).requestFilter);
+      list = list.where(RequestSearchFilter(_searchUrlQuery).requestFilter);
 
     return list.toList(growable: false);
   }
@@ -453,6 +453,9 @@ class InspectorController extends ChangeNotifier {
 
   void toggleInspectorJsonView() {
     _isTreeView = !_isTreeView;
+    // The GraphQL query is linearized differently in tree vs. text mode, so the
+    // total match count must be recomputed to stay aligned with the page.
+    if (_searchQuery.isNotEmpty) _updateTotalMatches();
     notifyListeners();
   }
 
@@ -494,56 +497,20 @@ class InspectorController extends ChangeNotifier {
   void _updateTotalMatches() {
     if (_searchQuery.isEmpty || _selectedRequest == null) {
       _totalMatches = 0;
+      _currentMatchIndex = -1;
       return;
     }
 
-    final allText = _extractAllText(_selectedRequest!);
-    final query = _searchQuery.toLowerCase();
-    final text = allText.toLowerCase();
-
-    var count = 0;
-    var index = text.indexOf(query);
-    while (index != -1) {
-      count++;
-      index = text.indexOf(query, index + query.length);
-    }
-    _totalMatches = count;
-    _currentMatchIndex = count > 0 ? 0 : -1;
-  }
-
-  String _extractAllText(RequestDetails request) {
-    final converter = JsonPrettyConverter();
-    final parts = <String>[];
-
-    final sentTimeText = InspectorHelper.extractTimeText(request.sentTime);
-    var text = 'Sent at: $sentTimeText';
-
-    if (request.receivedTime != null) {
-      final receivedTimeText =
-          InspectorHelper.extractTimeText(request.receivedTime!);
-      final durationText = InspectorHelper.calculateDuration(
-          request.sentTime, request.receivedTime!);
-      text += '\nReceived at: $receivedTimeText\nDuration: $durationText';
-    }
-
-    text += '\n\nURL: ${request.url}';
-    parts.add(text);
-
-    if (request.headers != null) parts.add(converter.convert(request.headers));
-    if (request.queryParameters != null) {
-      parts.add(converter.convert(request.queryParameters));
-    }
-    if (request.requestBody != null) {
-      parts.add(converter.convert(request.requestBody));
-    }
-    if (request.graphqlRequestVars != null) {
-      parts.add(converter.convert(request.graphqlRequestVars));
-    }
-    if (request.responseBody != null) {
-      parts.add(converter.convert(request.responseBody));
-    }
-
-    return parts.join('\n');
+    // Count exactly the matches the page renders (and in the same per-section
+    // order it reserves offsets for) so [totalMatches] and the active-match
+    // navigation can never land on a match index that has no highlight.
+    final scanner = RequestSearchScanner(
+      request: _selectedRequest!,
+      query: _searchQuery,
+      isTreeView: _isTreeView,
+    );
+    _totalMatches = scanner.total;
+    _currentMatchIndex = scanner.total > 0 ? 0 : -1;
   }
 
   void toggleExpandChildren() {

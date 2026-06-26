@@ -571,7 +571,24 @@ class _SearchField extends StatefulWidget {
 }
 
 class __SearchFieldState extends State<_SearchField> {
-  final TextEditingController _controller = TextEditingController();
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.searchQuery);
+
+  @override
+  void didUpdateWidget(covariant _SearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Keep the field in sync with the search query held by the controller so
+    // that the text never desyncs from the actually applied filter (e.g. when
+    // this widget's State is recreated after switching tabs while a query is
+    // still active, or when the search is cleared programmatically).
+    if (widget.searchQuery != _controller.text) {
+      _controller.value = TextEditingValue(
+        text: widget.searchQuery,
+        selection:
+            TextSelection.collapsed(offset: widget.searchQuery.length),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -584,7 +601,7 @@ class __SearchFieldState extends State<_SearchField> {
     return TextField(
       controller: _controller,
       decoration: InputDecoration(
-        hintText: 'Search by URL',
+        hintText: 'Search',
         fillColor: widget.isDarkMode ? Colors.black : Colors.white,
         filled: true,
         prefixIcon: const Icon(Icons.search),

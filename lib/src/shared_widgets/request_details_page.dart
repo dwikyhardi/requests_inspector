@@ -8,6 +8,7 @@ import 'package:requests_inspector/src/json_pretty_converter.dart';
 import '../graphql_tree_view_widget.dart';
 import '../helpers/graphql_helper.dart';
 import '../helpers/inspector_helper.dart';
+import '../helpers/request_search_scanner.dart';
 import '../helpers/search_helper.dart';
 import '../json_tree_view_widget.dart';
 import 'highlighted_text.dart';
@@ -87,103 +88,46 @@ class RequestDetailsPage extends StatelessWidget {
       builder: (context, state, _) {
         final query = state.searchQuery;
 
-        var currentOffset = 0;
+        // Single source of truth for per-section match counts and offsets,
+        // shared with [InspectorController] so the highlighted matches, the
+        // reserved offsets and the total count can never drift apart. Only the
+        // sections actually rendered below are counted (e.g. the raw request
+        // body is not counted when a GraphQL query is shown in its place).
+        final scanner = RequestSearchScanner(
+          request: request,
+          query: query,
+          isTreeView: state.isTreeView,
+        );
 
-        final sentTimeText = InspectorHelper.extractTimeText(request.sentTime);
-        var timeAndUrlText = 'Sent at: $sentTimeText';
-
-        if (request.receivedTime != null) {
-          final receivedTimeText =
-              InspectorHelper.extractTimeText(request.receivedTime!);
-          final durationText = InspectorHelper.calculateDuration(
-              request.sentTime, request.receivedTime!);
-          timeAndUrlText +=
-              '\nReceived at: $receivedTimeText\nDuration: $durationText';
-        }
-
-        timeAndUrlText += '\n\nURL: ${request.url}';
-
-        final timeAndUrlMatches =
-            SearchHelper.findMatches(text: timeAndUrlText, query: query).length;
-        final timeAndUrlOffset = currentOffset;
-        currentOffset += timeAndUrlMatches;
-
-        final headersPretty = request.headers != null
-            ? JsonPrettyConverter().convert(request.headers)
-            : '';
-        final headersMatches =
-            SearchHelper.findMatches(text: headersPretty, query: query).length;
-        final headersOffset = currentOffset;
-        currentOffset += headersMatches;
-
-        final queryParamsPretty = request.queryParameters != null
-            ? JsonPrettyConverter().convert(request.queryParameters)
-            : '';
-        final queryParamsMatches =
-            SearchHelper.findMatches(text: queryParamsPretty, query: query)
-                .length;
-        final queryParamsOffset = currentOffset;
-        currentOffset += queryParamsMatches;
+        final timeAndUrlOffset = scanner.timeAndUrlOffset;
+        final headersOffset = scanner.headersOffset;
+        final queryParamsOffset = scanner.queryParamsOffset;
+        final graphqlQueryOffset = scanner.graphqlQueryOffset;
+        final requestBodyOffset = scanner.requestBodyOffset;
+        final graphqlVarsOffset = scanner.graphqlVarsOffset;
+        final responseBodyOffset = scanner.responseBodyOffset;
 
         final graphqlInfo = GraphQLHelper.parse(request.requestBody);
         final graphqlQuery = graphqlInfo?.query ?? '';
-        // In tree mode the query is rendered as a collapsible tree, so matches
-        // must be counted over the same linearized text the tree consumes.
-        final graphqlQuerySearchText = state.isTreeView
-            ? GraphqlTreeView.flatten(graphqlQuery)
-            : graphqlQuery;
-        final graphqlQueryMatches = SearchHelper.findMatches(
-                text: graphqlQuerySearchText, query: query)
-            .length;
-        final graphqlQueryOffset = currentOffset;
-        currentOffset += graphqlQueryMatches;
-
-        final requestBodyPretty = request.requestBody != null
-            ? JsonPrettyConverter().convert(request.requestBody)
-            : '';
-        final requestBodyMatches =
-            SearchHelper.findMatches(text: requestBodyPretty, query: query)
-                .length;
-        final requestBodyOffset = currentOffset;
-        currentOffset += requestBodyMatches;
-
-        final graphqlVarsPretty = request.graphqlRequestVars != null
-            ? JsonPrettyConverter().convert(request.graphqlRequestVars)
-            : '';
-        final graphqlVarsMatches =
-            SearchHelper.findMatches(text: graphqlVarsPretty, query: query)
-                .length;
-        final graphqlVarsOffset = currentOffset;
-        currentOffset += graphqlVarsMatches;
-
-        final responseBodyPretty = request.responseBody != null
-            ? JsonPrettyConverter().convert(request.responseBody)
-            : '';
-        final responseBodyMatches =
-            SearchHelper.findMatches(text: responseBodyPretty, query: query)
-                .length;
-        final responseBodyOffset = currentOffset;
-        currentOffset += responseBodyMatches;
 
         return Selector<InspectorController, int>(
           selector: (_, controller) => controller.currentMatchIndex,
+          // [currentMatchIndex] is still observed so the list rebuilds while
+          // navigating; the active match's scroll/orange highlight is handled
+          // by the inner widgets themselves.
           builder: (context, currentMatchIndex, _) {
-            final isHeadersActive = currentMatchIndex >= headersOffset &&
-                currentMatchIndex < headersOffset + headersMatches;
-            final isQueryParamsActive =
-                currentMatchIndex >= queryParamsOffset &&
-                    currentMatchIndex < queryParamsOffset + queryParamsMatches;
-            final isRequestBodyActive =
-                currentMatchIndex >= requestBodyOffset &&
-                    currentMatchIndex < requestBodyOffset + requestBodyMatches;
-            final isGraphqlQueryActive =
-                currentMatchIndex >= graphqlQueryOffset &&
-                    currentMatchIndex < graphqlQueryOffset + graphqlQueryMatches;
-            final isGraphqlActive = currentMatchIndex >= graphqlVarsOffset &&
-                currentMatchIndex < graphqlVarsOffset + graphqlVarsMatches;
-            final isResponseBodyActive = currentMatchIndex >=
-                    responseBodyOffset &&
-                currentMatchIndex < responseBodyOffset + responseBodyMatches;
+            // A section is expanded whenever it contains any match for the
+            // current query, so the highlighted text inside it (including the
+            // Response Body) is actually rendered. A collapsed [ExpansionTile]
+            // builds none of its children, so before this nothing inside a
+            // collapsed section could ever be highlighted.
+            final timeAndUrlHasMatches = scanner.timeAndUrlCount > 0;
+            final headersHasMatches = scanner.headersCount > 0;
+            final queryParamsHasMatches = scanner.queryParamsCount > 0;
+            final graphqlQueryHasMatches = scanner.graphqlQueryCount > 0;
+            final requestBodyHasMatches = scanner.requestBodyCount > 0;
+            final graphqlVarsHasMatches = scanner.graphqlVarsCount > 0;
+            final responseBodyHasMatches = scanner.responseBodyCount > 0;
 
             return ListView(
               padding:
@@ -191,12 +135,15 @@ class RequestDetailsPage extends StatelessWidget {
               children: [
                 _buildExpandableSection(
                   context: context,
-                  txtCopy: JsonPrettyConverter().convert(request.url),
+                  txtCopy: JsonPrettyConverter().convert(graphqlInfo == null
+                      ? request.url
+                      : graphqlInfo.operationName),
                   titleWidget: _buildRequestNameAndStatus(
                     method: request.requestMethod,
                     requestName: request.requestName,
                     statusCode: request.statusCode,
                   ),
+                  forceExpanded: timeAndUrlHasMatches,
                   children: [
                     _buildRequestSentTimeAndDuration(
                       request.sentTime,
@@ -211,22 +158,25 @@ class RequestDetailsPage extends StatelessWidget {
                 if (_hasData(request.headers))
                   _buildExpandableSection(
                     context: context,
-                    txtCopy: headersPretty,
+                    txtCopy: JsonPrettyConverter().convert(request.headers),
                     title: 'Headers',
+                    forceExpanded: headersHasMatches,
                     children: _buildDataBlock(
                       request.headers,
                       isTreeView: state.isTreeView,
                       isDarkMode: state.isDarkMode,
                       searchQuery: query,
                       matchIndexOffset: headersOffset,
-                      expandChildren: state.expandChildren || isHeadersActive,
+                      expandChildren: state.expandChildren || headersHasMatches,
                     ),
                   ),
                 if (_hasData(request.queryParameters))
                   _buildExpandableSection(
                     context: context,
-                    txtCopy: queryParamsPretty,
+                    txtCopy:
+                        JsonPrettyConverter().convert(request.queryParameters),
                     title: 'Query Parameters',
+                    forceExpanded: queryParamsHasMatches,
                     children: _buildDataBlock(
                       request.queryParameters,
                       isTreeView: state.isTreeView,
@@ -234,7 +184,7 @@ class RequestDetailsPage extends StatelessWidget {
                       searchQuery: query,
                       matchIndexOffset: queryParamsOffset,
                       expandChildren:
-                          state.expandChildren || isQueryParamsActive,
+                          state.expandChildren || queryParamsHasMatches,
                     ),
                   ),
                 if (graphqlInfo != null)
@@ -242,6 +192,7 @@ class RequestDetailsPage extends StatelessWidget {
                     context: context,
                     txtCopy: graphqlQuery,
                     title: 'GraphQL Query',
+                    forceExpanded: graphqlQueryHasMatches,
                     children: _buildGraphqlQueryBlock(
                       graphqlQuery,
                       isTreeView: state.isTreeView,
@@ -249,15 +200,16 @@ class RequestDetailsPage extends StatelessWidget {
                       searchQuery: query,
                       matchIndexOffset: graphqlQueryOffset,
                       expandChildren:
-                          state.expandChildren || isGraphqlQueryActive,
+                          state.expandChildren || graphqlQueryHasMatches,
                     ),
                   ),
                 if (graphqlInfo == null && _hasData(request.requestBody))
                   _buildExpandableSection(
                     context: context,
-                    txtCopy: requestBodyPretty,
+                    txtCopy: JsonPrettyConverter().convert(request.requestBody),
                     title:
                         'Request Body${request.requestBody is FormData ? " (Form Data)" : ""}',
+                    forceExpanded: requestBodyHasMatches,
                     children: _buildDataBlock(
                       request.requestBody,
                       isTreeView: state.isTreeView,
@@ -265,28 +217,33 @@ class RequestDetailsPage extends StatelessWidget {
                       searchQuery: query,
                       matchIndexOffset: requestBodyOffset,
                       expandChildren:
-                          state.expandChildren || isRequestBodyActive,
+                          state.expandChildren || requestBodyHasMatches,
                     ),
                   ),
                 if (_hasData(request.graphqlRequestVars))
                   _buildExpandableSection(
                     context: context,
-                    txtCopy: graphqlVarsPretty,
+                    txtCopy: JsonPrettyConverter()
+                        .convert(request.graphqlRequestVars),
                     title: 'GraphQL Request Vars',
+                    forceExpanded: graphqlVarsHasMatches,
                     children: _buildDataBlock(
                       request.graphqlRequestVars,
                       isTreeView: state.isTreeView,
                       isDarkMode: state.isDarkMode,
                       searchQuery: query,
                       matchIndexOffset: graphqlVarsOffset,
-                      expandChildren: state.expandChildren || isGraphqlActive,
+                      expandChildren:
+                          state.expandChildren || graphqlVarsHasMatches,
                     ),
                   ),
                 if (_hasData(request.responseBody))
                   _buildExpandableSection(
                     context: context,
-                    txtCopy: responseBodyPretty,
+                    txtCopy:
+                        JsonPrettyConverter().convert(request.responseBody),
                     title: 'Response Body',
+                    forceExpanded: responseBodyHasMatches,
                     children: _buildDataBlock(
                       request.responseBody,
                       isTreeView: state.isTreeView,
@@ -294,7 +251,7 @@ class RequestDetailsPage extends StatelessWidget {
                       searchQuery: query,
                       matchIndexOffset: responseBodyOffset,
                       expandChildren:
-                          state.expandChildren || isResponseBodyActive,
+                          state.expandChildren || responseBodyHasMatches,
                     ),
                   ),
               ],
@@ -312,6 +269,7 @@ class RequestDetailsPage extends StatelessWidget {
     String? title,
     required String txtCopy,
     Widget? titleWidget,
+    bool forceExpanded = false,
     required List<Widget> children,
   }) {
     final theme = Theme.of(context);
@@ -338,8 +296,9 @@ class RequestDetailsPage extends StatelessWidget {
           child: Theme(
             data: theme.copyWith(dividerColor: Colors.transparent),
             child: ExpansionTile(
-              key: ValueKey('${title}_expanded'),
-              initiallyExpanded: false,
+              key: ValueKey(
+                  '${title}_${forceExpanded ? 'expanded' : 'collapsed'}'),
+              initiallyExpanded: forceExpanded,
               tilePadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 10,
@@ -396,19 +355,13 @@ class RequestDetailsPage extends StatelessWidget {
     required bool isDarkMode,
     required int matchIndexOffset,
   }) {
-    final sentTimeText = InspectorHelper.extractTimeText(sentTime);
-    var text = 'Sent at: $sentTimeText';
-
-    if (receivedTime != null) {
-      final durationText = InspectorHelper.calculateDuration(
-        sentTime,
-        receivedTime,
-      );
-      final receivedTimeText = InspectorHelper.extractTimeText(receivedTime);
-      text += '\nReceived at: $receivedTimeText\nDuration: $durationText';
-    }
-
-    text += '\n\nURL: $url';
+    // Reuse the scanner's builder so the rendered text is identical to the text
+    // its match count was computed from (keeping the offsets aligned).
+    final text = RequestSearchScanner.buildTimeAndUrlText(
+      sentTime: sentTime,
+      receivedTime: receivedTime,
+      url: url,
+    );
 
     return Padding(
       padding: const EdgeInsets.all(6.0),

@@ -65,5 +65,62 @@ void main() {
       expect(inspectorController.filteredRequestsList.length, 1);
       expect(inspectorController.filteredRequestsList.first.url, 'http://test1.com');
     });
+
+    test('Search matches GraphQL query/mutation, not just the URL', () {
+      // Both requests hit the same GraphQL endpoint, so the URL alone cannot
+      // distinguish them; the operation name / query document must be searched.
+      var sessionRequest = RequestDetails(
+        url: 'https://example.com/graphql',
+        requestMethod: RequestMethod.POST,
+        requestBody: {
+          'query': 'query CurrentSession { currentSession { id } }',
+        },
+      );
+      var ordersRequest = RequestDetails(
+        url: 'https://example.com/graphql',
+        requestMethod: RequestMethod.POST,
+        requestBody: {
+          'query': 'mutation CreateOrder { createOrder { id } }',
+        },
+      );
+      inspectorController.addNewRequest(sessionRequest);
+      inspectorController.addNewRequest(ordersRequest);
+
+      // Matching by operation name (case-insensitive).
+      inspectorController.searchForRequests('currentsession');
+      expect(inspectorController.filteredRequestsList.length, 1);
+      expect(inspectorController.filteredRequestsList.first.requestName,
+          'CurrentSession');
+
+      // Matching by text inside the query document.
+      inspectorController.searchForRequests('createOrder');
+      expect(inspectorController.filteredRequestsList.length, 1);
+      expect(inspectorController.filteredRequestsList.first.requestName,
+          'CreateOrder');
+    });
+
+    test(
+        'In-details total match count excludes the raw request body when a '
+        'GraphQL query is rendered in its place', () {
+      // The details page renders the extracted "GraphQL Query" section instead
+      // of the raw request body for GraphQL requests. The raw body must
+      // therefore NOT be counted, otherwise the counter and next/previous
+      // navigation cycle through matches that are never highlighted.
+      final request = RequestDetails(
+        url: 'https://example.com/graphql',
+        requestMethod: RequestMethod.POST,
+        requestBody: {
+          'query': 'query GetUser { user { name } }',
+        },
+      );
+      inspectorController.selectedRequest = request;
+      inspectorController.updateSearchQuery('user');
+
+      // 'user' is highlighted exactly twice in the rendered GraphQL Query tree
+      // ('GetUser' and 'user'); the (hidden) raw body would otherwise add two
+      // phantom matches.
+      expect(inspectorController.totalMatches, 2);
+      expect(inspectorController.currentMatchIndex, 0);
+    });
   });
 }
