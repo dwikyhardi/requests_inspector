@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:requests_inspector/requests_inspector.dart';
 
 class InspectorDialogTextField extends StatelessWidget {
   const InspectorDialogTextField({
@@ -12,11 +13,15 @@ class InspectorDialogTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = InspectorController().isDarkMode;
+    final fillColor = isDarkMode
+        ? const Color.fromARGB(255, 19, 19, 19)
+        : const Color.fromARGB(255, 235, 235, 235);
     return TextField(
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         filled: true,
-        fillColor: Color.fromARGB(255, 19, 19, 19),
-        border: OutlineInputBorder(borderSide: BorderSide.none),
+        fillColor: fillColor,
+        border: const OutlineInputBorder(borderSide: BorderSide.none),
       ),
       maxLines: null,
       minLines: 2,
