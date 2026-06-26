@@ -205,44 +205,6 @@ Future<List<Post>>
   return [post];
 }
 
-/// Unnecessary FormData, but added for TESTING
-Future<FormData> _getDummyFormData(final Dio dio) async {
-  final formData = FormData();
-  formData.fields.addAll(List.generate(4, (i) => MapEntry("test[$i]", "$i")));
-  final imageBytes = await _getFlutterImageBytes(dio);
-  if (imageBytes != null) {
-    formData.files.add(
-      MapEntry(
-        'test_image',
-        MultipartFile.fromBytes(
-          imageBytes,
-          filename: "flutter_logo.png",
-          contentType: DioMediaType('image', 'png'),
-        ),
-      ),
-    );
-  }
-  formData.files.add(
-    MapEntry(
-      'test_file',
-      MultipartFile.fromString('test', filename: "test.txt"),
-    ),
-  );
-  return formData;
-}
-
-/// Gets Flutter logo image in bytes from the server
-Future<List<int>?> _getFlutterImageBytes(final Dio dio) async {
-  const imageUrl =
-      "https://storage.googleapis.com/cms-storage-bucket/0dbfcc7a59cd1cf16282.png";
-  final imgResp = await dio.get<List<int>>(
-    imageUrl,
-    options: Options(responseType: ResponseType.bytes),
-  );
-
-  return imgResp.data;
-}
-
 // Post model
 class Post {
   final int id;
