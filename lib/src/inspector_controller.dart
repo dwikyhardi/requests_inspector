@@ -71,12 +71,19 @@ class InspectorController extends ChangeNotifier {
   StoppingResponseCallback? _onStoppingResponse;
 
   final _dio = Dio(BaseOptions(validateStatus: (_) => true));
-  final pageController = PageController(
-    initialPage: 0,
-    // if the viewportFraction is 1.0, the child pages will rebuild automatically
-    // but if it less than 1.0, the pages will stay alive
-    viewportFraction: 0.9999999,
-  );
+
+  /// Drives which page is shown by the host's [IndexedStack]:
+  /// 0 = the wrapped app, 1 = the inspector.
+  ///
+  /// Previously this was a [PageController] feeding a [PageView]. The PageView
+  /// is a scrollable viewport that sizes each page from floating-point scroll
+  /// geometry, so the width handed to the app could be off by a sub-pixel
+  /// fraction and trigger spurious "RenderFlex overflowed by 0.00004 pixels"
+  /// errors in descendant Rows. Since the pager was never swipeable
+  /// (NeverScrollableScrollPhysics) and switched pages instantly
+  /// (jumpToPage), a plain index notifier driving an IndexedStack is
+  /// behaviorally identical and lays children out with real tight constraints.
+  final currentPage = ValueNotifier<int>(0);
 
   int _selectedTab = 0;
   bool _requestStopperEnabled = false;
@@ -106,11 +113,15 @@ class InspectorController extends ChangeNotifier {
   String? _requestStopperFilterUrl;
   int? _responseStopperFilterStatusCode;
   String? _responseStopperFilterUrl;
+
   // ------------------------------
 
   RequestMethod? get requestStopperFilterMethod => _requestStopperFilterMethod;
+
   String? get requestStopperFilterUrl => _requestStopperFilterUrl;
+
   int? get responseStopperFilterStatusCode => _responseStopperFilterStatusCode;
+
   String? get responseStopperFilterUrl => _responseStopperFilterUrl;
 
   bool get hasRequestStopperFilters =>
@@ -298,9 +309,9 @@ class InspectorController extends ChangeNotifier {
     return filter.shouldStop(responseDetails);
   }
 
-  void showInspector() => pageController.jumpToPage(1);
+  void showInspector() => currentPage.value = 1;
 
-  void hideInspector() => pageController.jumpToPage(0);
+  void hideInspector() => currentPage.value = 0;
 
   void addNewRequest(RequestDetails request) {
     if (!_enabled) return;
@@ -377,10 +388,8 @@ class InspectorController extends ChangeNotifier {
         mimeType: 'application/json',
       );
 
-      Share.shareXFiles(
-        [file],
-        sharePositionOrigin: sharePositionOrigin,
-      );
+      SharePlus.instance.share(
+          ShareParams(files: [file], sharePositionOrigin: sharePositionOrigin));
       return;
     } else {
       final curlCommandGenerator = CurlCommandGenerator(_selectedRequest!);
@@ -393,16 +402,17 @@ class InspectorController extends ChangeNotifier {
           '================[cURL Command]=================\n$curlContent\n\n==================[Normal Log]===================\n$normalLogContent';
     }
 
-    Share.share(
-      requestShareContent,
+    SharePlus.instance.share(ShareParams(
+      text: requestShareContent,
       sharePositionOrigin: sharePositionOrigin,
-    );
+    ));
   }
 
   @override
   void dispose() {
     if (_allowShaking) _shakeDetector.stopListening();
     _singleton = null;
+    currentPage.dispose();
     super.dispose();
   }
 
