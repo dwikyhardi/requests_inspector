@@ -1,3 +1,9 @@
+## 5.5.0
+
+- `RequestsInspectorInterceptor` now supports masking sensitive information via the new `SensitiveDataMasker` (redacts secrets like tokens, passwords and cookies from the logged headers, query params, request/response bodies and GraphQL variables — the real request/response are never altered).
+- `RequestsInspectorInterceptor` gains an optional `isEnabled` `ValueListenable<bool>` to toggle capture on/off at runtime (capture is always on when omitted).
+- `RequestsInspectorInterceptor` now labels GraphQL POSTs by their `operationName` and surfaces their variables (parity with `GraphQLInspectorLink`).
+
 ## 5.4.0
 
 - Add Search feature on the request details page.

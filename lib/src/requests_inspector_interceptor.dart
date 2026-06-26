@@ -1,16 +1,52 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../requests_inspector.dart';
+import 'helpers/graphql_helper.dart';
 
+/// Dio interceptor that feeds every request/response into the
+/// [InspectorController] backing the inspector UI.
+///
+/// On top of the basic capture it offers two opt-in capabilities (both default
+/// to the previous behaviour when their parameters are omitted):
+///
+/// * **Runtime gating** — pass an [isEnabled] [ValueListenable] to toggle
+///   capture on/off at runtime (e.g. a developer-options switch). While it is
+///   `false` nothing is recorded and the request/response stoppers are skipped,
+///   so the interceptor adds no overhead until it is turned on. When omitted,
+///   capture is always on (legacy behaviour).
+/// * **Sensitive-data masking** — pass a [SensitiveDataMasker] to redact secret
+///   values (tokens, passwords, cookies, ...) from the headers, query
+///   parameters, request body, GraphQL variables and response body **before**
+///   they are stored for display. Masking is applied only to the logged copy;
+///   the real outgoing request and the live response are never altered.
+///
+/// GraphQL POSTs are additionally labelled by their `operationName`, with the
+/// variables surfaced in their own section (parity with the GraphQL link).
 class RequestsInspectorInterceptor extends Interceptor {
-  @override
-  Future<void> onRequest(
-    RequestOptions options,
-    RequestInterceptorHandler handler,
-  ) async {
-    options.extra['startTime'] = DateTime.now();
+  RequestsInspectorInterceptor({
+    ValueListenable<bool>? isEnabled,
+    SensitiveDataMasker? masker,
+  })
+      : _isEnabled = isEnabled,
+        _masker = masker;
 
-    if (!InspectorController().requestStopperEnabled)
+  static const String _startTimeKey = 'startTime';
+
+  /// Optional runtime toggle. When `null`, capture is always enabled.
+  final ValueListenable<bool>? _isEnabled;
+
+  /// Optional masker applied to the recorded (logged) data only.
+  final SensitiveDataMasker? _masker;
+
+  bool get _isCapturingEnabled => _isEnabled?.value ?? true;
+
+  @override
+  Future<void> onRequest(RequestOptions options,
+      RequestInterceptorHandler handler,) async {
+    options.extra[_startTimeKey] = DateTime.now();
+
+    if (!_isCapturingEnabled || !InspectorController().requestStopperEnabled)
       return super.onRequest(options, handler);
 
     final requestDetails = _convertToRequestDetails(options);
@@ -25,13 +61,11 @@ class RequestsInspectorInterceptor extends Interceptor {
   }
 
   @override
-  Future<void> onResponse(
-    Response response,
-    ResponseInterceptorHandler handler,
-  ) async {
+  Future<void> onResponse(Response response,
+      ResponseInterceptorHandler handler,) async {
     final dateTime = DateTime.now();
 
-    if (InspectorController().responseStopperEnabled) {
+    if (_isCapturingEnabled && InspectorController().responseStopperEnabled) {
       final url = _extractUrl(response.requestOptions).key;
       final oldResponseData = ResponseDetails(
         url: url,
@@ -59,59 +93,74 @@ class RequestsInspectorInterceptor extends Interceptor {
       }
     }
 
-    final urlAndQueryParMapEntry = _extractUrl(response.requestOptions);
-    final url = urlAndQueryParMapEntry.key;
-    final queryParameters = urlAndQueryParMapEntry.value;
-    InspectorController().addNewRequest(
-      RequestDetails(
-        requestMethod: RequestMethod.values.firstWhere(
-          (e) => e.name == response.requestOptions.method,
-        ),
-        url: url,
-        statusCode: response.statusCode ?? 0,
-        headers: response.requestOptions.headers,
-        queryParameters: queryParameters,
-        requestBody: response.requestOptions.data,
-        responseBody: response.data,
-        sentTime: response.requestOptions.extra['startTime'],
-        receivedTime: dateTime,
-      ),
+    _record(
+      options: response.requestOptions,
+      statusCode: response.statusCode ?? 0,
+      responseBody: response.data,
+      receivedTime: dateTime,
     );
     super.onResponse(response, handler);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    final urlAndQueryParMapEntry = _extractUrl(err.requestOptions);
-    final url = urlAndQueryParMapEntry.key;
-    final queryParameters = urlAndQueryParMapEntry.value;
-    InspectorController().addNewRequest(
-      RequestDetails(
-        requestMethod: RequestMethod.values.firstWhere(
-          (e) => e.name == err.requestOptions.method,
-        ),
-        url: url,
-        statusCode: err.response?.statusCode ?? 0,
-        headers: err.requestOptions.headers,
-        queryParameters: queryParameters,
-        requestBody: err.requestOptions.data,
-        responseBody: err.response?.data ?? err.message,
-        sentTime: err.requestOptions.extra['startTime'],
-        receivedTime: DateTime.now(),
-      ),
+    _record(
+      options: err.requestOptions,
+      statusCode: err.response?.statusCode ?? 0,
+      responseBody: err.response?.data ?? err.message,
+      receivedTime: DateTime.now(),
     );
     super.onError(err, handler);
   }
 
+  /// Builds and records a [RequestDetails] for a finished exchange, applying
+  /// the optional masker to every logged field. Skipped entirely while capture
+  /// is gated off.
+  void _record({
+    required RequestOptions options,
+    required int statusCode,
+    required dynamic responseBody,
+    required DateTime receivedTime,
+  }) {
+    if (!_isCapturingEnabled) return;
+
+    final graphql = GraphQLHelper.parse(options.data);
+    final urlAndQueryParMapEntry = _extractUrl(options);
+    InspectorController().addNewRequest(
+      RequestDetails(
+        requestName: graphql?.operationName,
+        requestMethod: _resolveMethod(options.method),
+        url: urlAndQueryParMapEntry.key,
+        statusCode: statusCode,
+        headers: _mask(options.headers),
+        queryParameters: _mask(urlAndQueryParMapEntry.value),
+        requestBody: _mask(options.data),
+        graphqlRequestVars: _mask(graphql?.variables),
+        responseBody: _mask(responseBody),
+        sentTime: options.extra[_startTimeKey] as DateTime? ?? DateTime.now(),
+        receivedTime: receivedTime,
+      ),
+    );
+  }
+
+  /// Returns a masked copy of [data] when a masker is configured, otherwise the
+  /// value unchanged. Masking never mutates the original structure.
+  dynamic _mask(dynamic data) => _masker?.mask(data) ?? data;
+
+  RequestMethod _resolveMethod(String method) =>
+      RequestMethod.values.firstWhere(
+            (e) => e.name == method.toUpperCase(),
+        orElse: () => RequestMethod.GET,
+      );
+
   MapEntry<String, Map<String, dynamic>> _extractUrl(
-    RequestOptions requestOptions,
-  ) {
+      RequestOptions requestOptions,) {
     final splitUri = requestOptions.uri.toString().split('?');
     final baseUrl = splitUri.first;
     final builtInQuery = splitUri.length > 1 ? splitUri.last : null;
     final buildInQueryParamsList = builtInQuery?.split('&').map((e) {
       final split = e.split('=');
-      return MapEntry(split.first, split.last);
+      return MapEntry(split.first, split.length > 1 ? split.last : '');
     }).toList();
     final builtInQueryParams = buildInQueryParamsList == null
         ? null
@@ -126,26 +175,23 @@ class RequestsInspectorInterceptor extends Interceptor {
 
   RequestDetails _convertToRequestDetails(RequestOptions options) =>
       RequestDetails(
-        requestMethod: RequestMethod.values.firstWhere(
-          (e) => e.name == options.method,
-        ),
+        requestMethod: _resolveMethod(options.method),
         url: options.uri.toString(),
         headers: options.headers,
         queryParameters: options.queryParameters,
         requestBody: options.data,
+        graphqlRequestVars: GraphQLHelper.extractVariables(options.data),
         sentTime: DateTime.now(),
       );
 
-  RequestOptions _copyRequestToNewOptions(
-    RequestOptions options,
-    RequestDetails requestDetails,
-  ) =>
+  RequestOptions _copyRequestToNewOptions(RequestOptions options,
+      RequestDetails requestDetails,) =>
       options.copyWith(
         method: requestDetails.requestMethod.name,
         headers: requestDetails.headers,
         queryParameters: requestDetails.queryParameters,
         data: requestDetails.requestBody,
         path: requestDetails.url,
-        extra: {...options.extra, 'startTime': DateTime.now()},
+        extra: {...options.extra, _startTimeKey: DateTime.now()},
       );
 }

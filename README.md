@@ -63,6 +63,49 @@ void main() {
 final dio = Dio()..interceptors.add(RequestsInspectorInterceptor());
 ```
 
+#### Masking sensitive information
+
+Pass a `SensitiveDataMasker` to redact secret values (tokens, passwords,
+cookies, ...) from the headers, query parameters, request body, GraphQL
+variables and response body **before** they are stored for display. Masking is
+applied only to the logged copy — the real outgoing request and the live
+response are never altered.
+
+```dart
+final dio = Dio()
+  ..interceptors.add(
+    RequestsInspectorInterceptor(
+      // Uses SensitiveDataMasker.defaultMaskedKeys when `maskedKeys` is omitted.
+      masker: SensitiveDataMasker(
+        maskedKeys: {'authorization', 'password', 'staticToken'},
+        placeholder: '***',
+        // Optional: customize the masked value per key.
+        // maskValueBuilder: (key, value) => '<redacted $key>',
+      ),
+    ),
+  );
+```
+
+Matching is by **key name**, case-insensitively, and works recursively through
+nested maps/lists and even JSON encoded inside string values.
+
+#### Toggling capture at runtime
+
+Pass an `isEnabled` `ValueListenable<bool>` (e.g. a `ValueNotifier`) to turn
+capture on/off at runtime — while it is `false` nothing is recorded and the
+request/response stoppers are skipped. When omitted, capture is always on.
+
+```dart
+final networkLogEnabled = ValueNotifier<bool>(false);
+final dio = Dio()
+  ..interceptors.add(
+    RequestsInspectorInterceptor(isEnabled: networkLogEnabled),
+  );
+
+// later, from a developer-options switch:
+networkLogEnabled.value = true;
+```
+
 ### If you don't use `Dio` then don't worry
 
 In your API request just add a new `RequestDetails` using `RequestInspectorController` filled with the API data.

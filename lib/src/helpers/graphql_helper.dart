@@ -7,8 +7,13 @@ import 'package:dio/dio.dart';
 class GraphQLRequestInfo {
   final String query;
   final String? operationName;
+  final dynamic variables;
 
-  const GraphQLRequestInfo({required this.query, this.operationName});
+  const GraphQLRequestInfo({
+    required this.query,
+    this.operationName,
+    this.variables,
+  });
 }
 
 /// Detects and extracts GraphQL information from various request body shapes:
@@ -48,6 +53,10 @@ class GraphQLHelper {
   /// Convenience accessor for the GraphQL operation name.
   static String? extractOperationName(dynamic requestBody) =>
       parse(requestBody)?.operationName;
+
+  /// Convenience accessor for the GraphQL operation variables.
+  static dynamic extractVariables(dynamic requestBody) =>
+      parse(requestBody)?.variables;
 
   static GraphQLRequestInfo? _parseFromFormData(FormData formData) {
     for (final field in formData.fields) {
@@ -101,6 +110,7 @@ class GraphQLHelper {
       operationName: operationName is String && operationName.isNotEmpty
           ? operationName
           : _operationNameFromQuery(query),
+      variables: map['variables'],
     );
   }
 
