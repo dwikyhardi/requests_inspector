@@ -416,6 +416,7 @@ class Inspector extends StatelessWidget {
                     isHttp ? await _showDialogShareType(context) : null;
 
                 if (shareType == null) return;
+                if (!context.mounted) return;
 
                 if (shareType == ShareType.Har) {
                   shareType = await _showHarFormatDialog(context);
@@ -450,22 +451,16 @@ class Inspector extends StatelessWidget {
         content: const Text('Choose your preferred share format'),
         actions: [
           TextButton(
-            child: const Text(
-              'cURL Command',
-              style: TextStyle(color: Colors.green),
-            ),
+            child: const Text('cURL Command'),
             onPressed: () => Navigator.of(context).pop(ShareType.CurlCommand),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(ShareType.NormalLog),
-            child: const Text(
-              'Normal Log',
-              style: TextStyle(color: Colors.yellow),
-            ),
+            child: const Text('Normal Log'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(ShareType.Both),
-            child: const Text('Both', style: TextStyle(color: Colors.red)),
+            child: const Text('Both'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(ShareType.Har),
