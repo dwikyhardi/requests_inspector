@@ -2,6 +2,7 @@
 import 'dart:convert';
 
 import 'package:requests_inspector/requests_inspector.dart';
+import 'package:requests_inspector/src/helpers/graphql_helper.dart';
 
 class RequestDetails {
   late final String requestName;
@@ -30,7 +31,9 @@ class RequestDetails {
     DateTime? sentTime,
     this.receivedTime,
   }) {
-    this.requestName = requestName?.toUpperCase() ?? _extractName(url);
+    this.requestName = requestName ??
+        GraphQLHelper.extractOperationName(requestBody) ??
+        _extractName(url);
     this.sentTime = sentTime ?? DateTime.now();
     _id = _generateId();
   }

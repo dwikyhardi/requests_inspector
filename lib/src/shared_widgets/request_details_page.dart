@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:requests_inspector/requests_inspector.dart';
 import 'package:requests_inspector/src/json_pretty_converter.dart';
 
+import '../graphql_tree_view_widget.dart';
+import '../helpers/graphql_helper.dart';
 import '../helpers/inspector_helper.dart';
 import '../helpers/search_helper.dart';
 import '../json_tree_view_widget.dart';
@@ -123,6 +125,19 @@ class RequestDetailsPage extends StatelessWidget {
         final queryParamsOffset = currentOffset;
         currentOffset += queryParamsMatches;
 
+        final graphqlInfo = GraphQLHelper.parse(request.requestBody);
+        final graphqlQuery = graphqlInfo?.query ?? '';
+        // In tree mode the query is rendered as a collapsible tree, so matches
+        // must be counted over the same linearized text the tree consumes.
+        final graphqlQuerySearchText = state.isTreeView
+            ? GraphqlTreeView.flatten(graphqlQuery)
+            : graphqlQuery;
+        final graphqlQueryMatches = SearchHelper.findMatches(
+                text: graphqlQuerySearchText, query: query)
+            .length;
+        final graphqlQueryOffset = currentOffset;
+        currentOffset += graphqlQueryMatches;
+
         final requestBodyPretty = request.requestBody != null
             ? JsonPrettyConverter().convert(request.requestBody)
             : '';
@@ -161,6 +176,9 @@ class RequestDetailsPage extends StatelessWidget {
             final isRequestBodyActive =
                 currentMatchIndex >= requestBodyOffset &&
                     currentMatchIndex < requestBodyOffset + requestBodyMatches;
+            final isGraphqlQueryActive =
+                currentMatchIndex >= graphqlQueryOffset &&
+                    currentMatchIndex < graphqlQueryOffset + graphqlQueryMatches;
             final isGraphqlActive = currentMatchIndex >= graphqlVarsOffset &&
                 currentMatchIndex < graphqlVarsOffset + graphqlVarsMatches;
             final isResponseBodyActive = currentMatchIndex >=
@@ -190,7 +208,7 @@ class RequestDetailsPage extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (request.headers != null)
+                if (_hasData(request.headers))
                   _buildExpandableSection(
                     context: context,
                     txtCopy: headersPretty,
@@ -204,7 +222,7 @@ class RequestDetailsPage extends StatelessWidget {
                       expandChildren: state.expandChildren || isHeadersActive,
                     ),
                   ),
-                if (request.queryParameters != null)
+                if (_hasData(request.queryParameters))
                   _buildExpandableSection(
                     context: context,
                     txtCopy: queryParamsPretty,
@@ -219,7 +237,22 @@ class RequestDetailsPage extends StatelessWidget {
                           state.expandChildren || isQueryParamsActive,
                     ),
                   ),
-                if (request.requestBody != null)
+                if (graphqlInfo != null)
+                  _buildExpandableSection(
+                    context: context,
+                    txtCopy: graphqlQuery,
+                    title: 'GraphQL Query',
+                    children: _buildGraphqlQueryBlock(
+                      graphqlQuery,
+                      isTreeView: state.isTreeView,
+                      isDarkMode: state.isDarkMode,
+                      searchQuery: query,
+                      matchIndexOffset: graphqlQueryOffset,
+                      expandChildren:
+                          state.expandChildren || isGraphqlQueryActive,
+                    ),
+                  ),
+                if (graphqlInfo == null && _hasData(request.requestBody))
                   _buildExpandableSection(
                     context: context,
                     txtCopy: requestBodyPretty,
@@ -235,7 +268,7 @@ class RequestDetailsPage extends StatelessWidget {
                           state.expandChildren || isRequestBodyActive,
                     ),
                   ),
-                if (request.graphqlRequestVars != null)
+                if (_hasData(request.graphqlRequestVars))
                   _buildExpandableSection(
                     context: context,
                     txtCopy: graphqlVarsPretty,
@@ -249,7 +282,7 @@ class RequestDetailsPage extends StatelessWidget {
                       expandChildren: state.expandChildren || isGraphqlActive,
                     ),
                   ),
-                if (request.responseBody != null)
+                if (_hasData(request.responseBody))
                   _buildExpandableSection(
                     context: context,
                     txtCopy: responseBodyPretty,
@@ -280,7 +313,6 @@ class RequestDetailsPage extends StatelessWidget {
     required String txtCopy,
     Widget? titleWidget,
     required List<Widget> children,
-    bool initiallyExpanded = true,
   }) {
     final theme = Theme.of(context);
     final cardColor = theme.cardColor;
@@ -292,61 +324,64 @@ class RequestDetailsPage extends StatelessWidget {
         decoration: BoxDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: borderColor.withOpacity(0.3)),
+          border: Border.all(color: borderColor.withValues(alpha: 0.3)),
           boxShadow: [
             BoxShadow(
-              color: theme.shadowColor.withOpacity(0.05),
+              color: theme.shadowColor.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: Theme(
-          data: theme.copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            key: initiallyExpanded ? ValueKey('${title}_expanded') : null,
-            initiallyExpanded: initiallyExpanded,
-            tilePadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 10,
-            ),
-            childrenPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 8,
-            ),
-            expandedAlignment: Alignment.topLeft,
-            title: Row(
-              children: [
-                Expanded(
-                  child: titleWidget ??
-                      Text(
-                        title ?? '',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+        child: Material(
+          type: MaterialType.transparency,
+          child: Theme(
+            data: theme.copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              key: ValueKey('${title}_expanded'),
+              initiallyExpanded: false,
+              tilePadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 10,
+              ),
+              childrenPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
+              ),
+              expandedAlignment: Alignment.topLeft,
+              title: Row(
+                children: [
+                  Expanded(
+                    child: titleWidget ??
+                        Text(
+                          title ?? '',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                ),
-                InkWell(
-                  child: const Icon(Icons.copy, color: Colors.grey, size: 20),
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: txtCopy));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Copied to clipboard')),
-                    );
-                  },
+                  ),
+                  InkWell(
+                    child: const Icon(Icons.copy, color: Colors.grey, size: 20),
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: txtCopy));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Copied to clipboard')),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              children: [
+                Container(
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: children,
+                  ),
                 ),
               ],
             ),
-            children: [
-              Container(
-                alignment: Alignment.centerLeft,
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: children,
-                ),
-              ),
-            ],
           ),
         ),
       ),
@@ -385,6 +420,71 @@ class RequestDetailsPage extends StatelessWidget {
         style: const TextStyle(fontSize: 16.0),
       ),
     );
+  }
+
+  bool _hasData(dynamic data) {
+    if (data == null) return false;
+    if (data is Map) return data.isNotEmpty;
+    if (data is List) return data.isNotEmpty;
+    if (data is String) return data.trim().isNotEmpty;
+    return true;
+  }
+
+  List<Widget> _buildGraphqlQueryBlock(
+    String query, {
+    required bool isTreeView,
+    required bool isDarkMode,
+    required String searchQuery,
+    required int matchIndexOffset,
+    required bool expandChildren,
+  }) {
+    if (query.trim().isEmpty) return [];
+
+    // In tree mode, render the GraphQL document as a collapsible tree (like
+    // [JsonTreeView]) so its selection sets can be expanded/collapsed. A GraphQL
+    // document is not JSON, so it has its own dedicated tree widget.
+    if (isTreeView) {
+      return [
+        GraphqlTreeView(
+          query,
+          isDarkMode: isDarkMode,
+          searchQuery: searchQuery,
+          matchIndexOffset: matchIndexOffset,
+          expandChildren: expandChildren,
+        ),
+      ];
+    }
+
+    // Otherwise it is rendered as plain (line-by-line) highlighted text.
+    final lines = query.split('\n');
+    final children = <Widget>[];
+    var currentOffset = matchIndexOffset;
+
+    for (final line in lines) {
+      final matchesCount =
+          SearchHelper.findMatches(text: line, query: searchQuery).length;
+
+      children.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 1.0),
+          child: HighlightedText(
+            text: line,
+            searchQuery: searchQuery,
+            isDarkMode: isDarkMode,
+            matchIndexOffset: currentOffset,
+          ),
+        ),
+      );
+
+      currentOffset += matchesCount;
+    }
+
+    return [
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
+    ];
   }
 
   List<Widget> _buildDataBlock(
