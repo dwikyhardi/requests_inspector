@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:gql/language.dart';
 import 'package:graphql/client.dart';
 
-import '../requests_inspector.dart';
+import '../requests_inspector_plus.dart';
 
 /// Wraps a GraphQL [Link] and mirrors each operation into [InspectorController].
 ///

@@ -2,8 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:requests_inspector/requests_inspector.dart';
-import 'package:requests_inspector/src/json_pretty_converter.dart';
+import 'package:requests_inspector_plus/requests_inspector_plus.dart';
+import 'package:requests_inspector_plus/src/json_pretty_converter.dart';
 
 import '../graphql_tree_view_widget.dart';
 import '../helpers/graphql_helper.dart';

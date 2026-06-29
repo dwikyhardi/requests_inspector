@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:requests_inspector/src/inspector_controller.dart';
-import 'package:requests_inspector/src/helpers/search_helper.dart';
+import 'package:requests_inspector_plus/src/inspector_controller.dart';
+import 'package:requests_inspector_plus/src/helpers/search_helper.dart';
 
 class HighlightedText extends StatefulWidget {
   final String? text;

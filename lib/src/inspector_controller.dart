@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:requests_inspector/src/shake.dart';
-import 'package:requests_inspector/src/stopper_filter.dart';
+import 'package:requests_inspector_plus/src/shake.dart';
+import 'package:requests_inspector_plus/src/stopper_filter.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../requests_inspector.dart';
+import '../requests_inspector_plus.dart';
 import 'curl_command_generator.dart';
 import 'har_generator.dart';
 import 'json_pretty_converter.dart';

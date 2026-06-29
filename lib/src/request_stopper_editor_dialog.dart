@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:requests_inspector/src/json_pretty_converter.dart';
+import 'package:requests_inspector_plus/src/json_pretty_converter.dart';
 
-import '../requests_inspector.dart';
+import '../requests_inspector_plus.dart';
 import 'shared_widgets/inspector_dialog_text_field.dart';
 
 class RequestStopperEditorDialog extends StatefulWidget {

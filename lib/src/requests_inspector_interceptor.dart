@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
-import '../requests_inspector.dart';
+import '../requests_inspector_plus.dart';
 import 'helpers/graphql_helper.dart';
 
 /// Dio interceptor that feeds every request/response into the

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:requests_inspector/requests_inspector.dart';
+import 'package:requests_inspector_plus/requests_inspector_plus.dart';
 
 class InspectorDialogTextField extends StatelessWidget {
   const InspectorDialogTextField({

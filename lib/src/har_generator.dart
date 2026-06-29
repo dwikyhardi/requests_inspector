@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
-import '../requests_inspector.dart';
+import '../requests_inspector_plus.dart';
 
 class HarGenerator {
   const HarGenerator();

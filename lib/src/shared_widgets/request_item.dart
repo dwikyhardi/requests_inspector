@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../requests_inspector.dart';
+import '../../requests_inspector_plus.dart';
 import '../helpers/inspector_helper.dart';
 
 class RequestItemWidget extends StatelessWidget {

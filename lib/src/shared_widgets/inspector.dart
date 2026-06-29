@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:requests_inspector/src/filters_dialog.dart';
-import 'package:requests_inspector/src/shared_widgets/inspector_option_switch.dart';
-import 'package:requests_inspector/src/shared_widgets/request_details_page.dart';
-import 'package:requests_inspector/src/shared_widgets/request_item.dart';
-import 'package:requests_inspector/src/shared_widgets/run_again_widget.dart';
-import 'package:requests_inspector/src/stopper_filters_dialog.dart';
-import '../../requests_inspector.dart';
+import 'package:requests_inspector_plus/src/filters_dialog.dart';
+import 'package:requests_inspector_plus/src/shared_widgets/inspector_option_switch.dart';
+import 'package:requests_inspector_plus/src/shared_widgets/request_details_page.dart';
+import 'package:requests_inspector_plus/src/shared_widgets/request_item.dart';
+import 'package:requests_inspector_plus/src/shared_widgets/run_again_widget.dart';
+import 'package:requests_inspector_plus/src/stopper_filters_dialog.dart';
+import '../../requests_inspector_plus.dart';
 import '../enums/share_type_enum.dart';
 
 class Inspector extends StatelessWidget {

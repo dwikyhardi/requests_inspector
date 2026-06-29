@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:requests_inspector/src/enums/requests_methods.dart';
-import 'package:requests_inspector/src/inspector_controller.dart';
+import 'package:requests_inspector_plus/src/enums/requests_methods.dart';
+import 'package:requests_inspector_plus/src/inspector_controller.dart';
 
 class FiltersDialog extends StatefulWidget {
   const FiltersDialog({super.key, required this.isDarkMode});

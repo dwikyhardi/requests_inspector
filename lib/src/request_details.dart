@@ -1,8 +1,8 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:convert';
 
-import 'package:requests_inspector/requests_inspector.dart';
-import 'package:requests_inspector/src/helpers/graphql_helper.dart';
+import 'package:requests_inspector_plus/requests_inspector_plus.dart';
+import 'package:requests_inspector_plus/src/helpers/graphql_helper.dart';
 
 class RequestDetails {
   late final String requestName;

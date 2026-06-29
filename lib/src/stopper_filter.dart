@@ -1,6 +1,6 @@
-import 'package:requests_inspector/src/enums/requests_methods.dart';
-import 'package:requests_inspector/src/request_details.dart';
-import 'package:requests_inspector/src/response_details.dart';
+import 'package:requests_inspector_plus/src/enums/requests_methods.dart';
+import 'package:requests_inspector_plus/src/request_details.dart';
+import 'package:requests_inspector_plus/src/response_details.dart';
 
 abstract class StopperFilter {
   bool shouldStop(dynamic details);

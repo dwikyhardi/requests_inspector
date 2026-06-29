@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:requests_inspector/src/enums/requests_methods.dart';
-import 'package:requests_inspector/src/helpers/graphql_helper.dart';
-import 'package:requests_inspector/src/request_details.dart';
+import 'package:requests_inspector_plus/src/enums/requests_methods.dart';
+import 'package:requests_inspector_plus/src/helpers/graphql_helper.dart';
+import 'package:requests_inspector_plus/src/request_details.dart';
 
 abstract class RequestFilter {
   bool Function(RequestDetails requestDetails) get requestFilter;

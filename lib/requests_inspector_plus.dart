@@ -1,4 +1,4 @@
-library requests_inspector;
+library requests_inspector_plus;
 
 export './src/inspector_controller.dart';
 export './src/request_details.dart';
