@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:requests_inspector/requests_inspector.dart';
-import 'package:requests_inspector/src/shared_widgets/request_details_page.dart';
+import 'package:requests_inspector_plus/requests_inspector_plus.dart';
+import 'package:requests_inspector_plus/src/shared_widgets/request_details_page.dart';
 
 /// A realistic, deeply nested GraphQL response body (mirrors the structure of
 /// a real API response: nested objects, a list of objects and a string field).

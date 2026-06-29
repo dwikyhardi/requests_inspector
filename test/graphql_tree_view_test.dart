@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:requests_inspector/src/graphql_tree_view_widget.dart';
+import 'package:requests_inspector_plus/src/graphql_tree_view_widget.dart';
 
 void main() {
   group('GraphqlTreeView.flatten', () {
