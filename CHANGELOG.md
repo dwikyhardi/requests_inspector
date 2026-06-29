@@ -1,3 +1,10 @@
+## 1.0.0
+
+- Renamed and published as `requests_inspector_plus`, a fork of [`requests_inspector`](https://github.com/Abdelazeem777/requests_inspector) by Abdelazeem Kuratem (MIT). Update your imports to `package:requests_inspector_plus/requests_inspector_plus.dart`.
+- Includes runtime capture gating (`isEnabled`), sensitive-data masking (`SensitiveDataMasker`) and GraphQL operation labelling on top of the original feature set.
+
+> The history below is inherited from the upstream `requests_inspector` package.
+
 ## 5.5.0
 
 - `RequestsInspectorInterceptor` now supports masking sensitive information via the new `SensitiveDataMasker` (redacts secrets like tokens, passwords and cookies from the logged headers, query params, request/response bodies and GraphQL variables — the real request/response are never altered).

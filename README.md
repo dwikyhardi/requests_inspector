@@ -4,11 +4,13 @@
 <img src="https://raw.githubusercontent.com/Abdelazeem777/requests_inspector/main/images/logo_with_text_right.png" height= "350">
 </div>
 
-# requests_inspector 🕵
+# requests_inspector_plus 🕵
 
-[![pub package](https://img.shields.io/pub/v/requests_inspector.svg)](https://pub.dev/packages/requests_inspector)
+[![pub package](https://img.shields.io/pub/v/requests_inspector_plus.svg)](https://pub.dev/packages/requests_inspector_plus)
 
 A Flutter package for **logging** API requests (**Http Requests** & **GraphQL**) requests.
+
+> `requests_inspector_plus` is a fork of [`requests_inspector`](https://github.com/Abdelazeem777/requests_inspector) by Abdelazeem Kuratem, extended with runtime capture gating, sensitive-data masking and GraphQL operation labelling.
 
 ### Main Features:
 
@@ -177,7 +179,7 @@ Future<List<Post>> fetchPosts() async {
 
 ### 2\. GraphQl:
 
-To use `requests_inspector` with [graphql_flutter](https://pub.dev/packages/graphql_flutter) library.
+To use `requests_inspector_plus` with [graphql_flutter](https://pub.dev/packages/graphql_flutter) library.
 you jus need to wrap your normal `HttpLink` with our `GraphQLInspectorLink` and we are done.
 
 **Example:**
@@ -217,7 +219,7 @@ you jus need to wrap your normal `HttpLink` with our `GraphQLInspectorLink` and 
 
 ### Stopper (Requests & Responses)
 
-`requests_inspector` **(Stopper)** enables your to stop and edit requests (before sending it to server) and responses (before receiving it inside the app).
+`requests_inspector_plus` **(Stopper)** enables your to stop and edit requests (before sending it to server) and responses (before receiving it inside the app).
 
 - First, you need to add navigatorKey to your `MaterialApp` then pass it to `RequestsInspector` to show Stopper dialogs.
 
@@ -287,7 +289,7 @@ void main() {
 
 ## 🤝 Contributors
 
-Contributors helping improve `requests_inspector`: 💻🎨📖🚧
+Contributors helping improve `requests_inspector_plus`: 💻🎨📖🚧
 
 <table>
   <tr>
@@ -411,9 +413,9 @@ To add yourself as a contributor, simply follow the contribution guidelines and 
 - [x] Powerful JSON Tree View.
 - [x] Collapsable separated sections.
 - [x] Click to Copy Content of each section.
+- [x] 'WillPopScope' is deprecated and shouldn't be used. Use PopScope instead. The Android predictive back feature will not work with WillPopScope.
 - [ ] Add search inside the request details page.
 - [ ] Add Http Interceptor.
-- [ ] 'WillPopScope' is deprecated and shouldn't be used. Use PopScope instead. The Android predictive back feature will not work with WillPopScope.
 
 ---
 
