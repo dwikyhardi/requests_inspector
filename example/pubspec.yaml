@@ -30,7 +30,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  requests_inspector:
+  requests_inspector_plus:
     path: ../
 
   dio:

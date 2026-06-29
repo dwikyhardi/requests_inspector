@@ -5,7 +5,7 @@ import 'dart:developer';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:graphql/client.dart';
-import 'package:requests_inspector/requests_inspector.dart';
+import 'package:requests_inspector_plus/requests_inspector_plus.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
