@@ -388,6 +388,14 @@ Contributors helping improve `requests_inspector_plus`: 💻🎨📖🚧
       </a>
     </td>
   </tr>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/dwikyhardi">
+        <img src="https://avatars.githubusercontent.com/u/29680162?v=4?s=100" width="70px" /><br />
+        <sub><b>Dwiky</b></sub>
+      </a>
+    </td>
+  </tr>
 </table>
 
 ### How to Contribute
