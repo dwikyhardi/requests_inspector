@@ -34,8 +34,7 @@ void main() {
     });
 
     test('extracts operation name from raw query string', () {
-      final info =
-          GraphQLHelper.parse('mutation DoThing { doThing { ok } }');
+      final info = GraphQLHelper.parse('mutation DoThing { doThing { ok } }');
 
       expect(info, isNotNull);
       expect(info!.operationName, 'DoThing');

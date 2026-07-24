@@ -55,11 +55,12 @@ class InspectorController extends ChangeNotifier {
         _expandChildren = defaultExpandChildren,
         _isDarkMode = defaultIsDarkMode,
         _onStoppingResponse = onStoppingResponse {
-    if (_enabled && _allowShaking)
+    if (_enabled && _allowShaking) {
       _shakeDetector = ShakeDetector.autoStart(
         onPhoneShake: showInspector,
         minimumShakeCount: 3,
       );
+    }
   }
 
   static InspectorController? _singleton;
@@ -173,16 +174,19 @@ class InspectorController extends ChangeNotifier {
   List<RequestDetails> get filteredRequestsList {
     Iterable<RequestDetails> list = [..._requestsList];
 
-    if (_filterRequestMethod != null)
+    if (_filterRequestMethod != null) {
       list =
           list.where(RequestMethodFilter(_filterRequestMethod!).requestFilter);
+    }
 
-    if (_filterStatusCode != null)
+    if (_filterStatusCode != null) {
       list =
           list.where(RequestStatusCodeFilter(_filterStatusCode!).requestFilter);
+    }
 
-    if (_searchUrlQuery.trim().isNotEmpty)
+    if (_searchUrlQuery.trim().isNotEmpty) {
       list = list.where(RequestSearchFilter(_searchUrlQuery).requestFilter);
+    }
 
     return list.toList(growable: false);
   }

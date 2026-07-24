@@ -69,7 +69,8 @@ class RequestItemWidget extends StatelessWidget {
     return Material(
       type: MaterialType.transparency,
       child: Theme(
-        data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light()),
+        data:
+            Theme.of(context).copyWith(colorScheme: const ColorScheme.light()),
         child: child,
       ),
     );

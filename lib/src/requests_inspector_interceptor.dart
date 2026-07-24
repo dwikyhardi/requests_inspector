@@ -27,8 +27,7 @@ class RequestsInspectorInterceptor extends Interceptor {
   RequestsInspectorInterceptor({
     ValueListenable<bool>? isEnabled,
     SensitiveDataMasker? masker,
-  })
-      : _isEnabled = isEnabled,
+  })  : _isEnabled = isEnabled,
         _masker = masker;
 
   static const String _startTimeKey = 'startTime';
@@ -42,8 +41,10 @@ class RequestsInspectorInterceptor extends Interceptor {
   bool get _isCapturingEnabled => _isEnabled?.value ?? true;
 
   @override
-  Future<void> onRequest(RequestOptions options,
-      RequestInterceptorHandler handler,) async {
+  Future<void> onRequest(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
     options.extra[_startTimeKey] = DateTime.now();
 
     if (!_isCapturingEnabled || !InspectorController().requestStopperEnabled)
@@ -61,8 +62,10 @@ class RequestsInspectorInterceptor extends Interceptor {
   }
 
   @override
-  Future<void> onResponse(Response response,
-      ResponseInterceptorHandler handler,) async {
+  Future<void> onResponse(
+    Response response,
+    ResponseInterceptorHandler handler,
+  ) async {
     final dateTime = DateTime.now();
 
     if (_isCapturingEnabled && InspectorController().responseStopperEnabled) {
@@ -149,12 +152,13 @@ class RequestsInspectorInterceptor extends Interceptor {
 
   RequestMethod _resolveMethod(String method) =>
       RequestMethod.values.firstWhere(
-            (e) => e.name == method.toUpperCase(),
+        (e) => e.name == method.toUpperCase(),
         orElse: () => RequestMethod.GET,
       );
 
   MapEntry<String, Map<String, dynamic>> _extractUrl(
-      RequestOptions requestOptions,) {
+    RequestOptions requestOptions,
+  ) {
     final splitUri = requestOptions.uri.toString().split('?');
     final baseUrl = splitUri.first;
     final builtInQuery = splitUri.length > 1 ? splitUri.last : null;
@@ -184,8 +188,10 @@ class RequestsInspectorInterceptor extends Interceptor {
         sentTime: DateTime.now(),
       );
 
-  RequestOptions _copyRequestToNewOptions(RequestOptions options,
-      RequestDetails requestDetails,) =>
+  RequestOptions _copyRequestToNewOptions(
+    RequestOptions options,
+    RequestDetails requestDetails,
+  ) =>
       options.copyWith(
         method: requestDetails.requestMethod.name,
         headers: requestDetails.headers,

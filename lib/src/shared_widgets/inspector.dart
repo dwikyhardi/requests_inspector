@@ -584,8 +584,7 @@ class __SearchFieldState extends State<_SearchField> {
     if (widget.searchQuery != _controller.text) {
       _controller.value = TextEditingValue(
         text: widget.searchQuery,
-        selection:
-            TextSelection.collapsed(offset: widget.searchQuery.length),
+        selection: TextSelection.collapsed(offset: widget.searchQuery.length),
       );
     }
   }

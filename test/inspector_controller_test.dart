@@ -63,7 +63,8 @@ void main() {
       inspectorController.searchForRequests('test1');
 
       expect(inspectorController.filteredRequestsList.length, 1);
-      expect(inspectorController.filteredRequestsList.first.url, 'http://test1.com');
+      expect(inspectorController.filteredRequestsList.first.url,
+          'http://test1.com');
     });
 
     test('Search matches GraphQL query/mutation, not just the URL', () {

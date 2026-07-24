@@ -28,8 +28,9 @@ class SensitiveDataMasker {
     Set<String>? maskedKeys,
     this.placeholder = '***',
     MaskValueBuilder? maskValueBuilder,
-  })  : maskedKeys =
-            (maskedKeys ?? defaultMaskedKeys).map((e) => e.toLowerCase()).toSet(),
+  })  : maskedKeys = (maskedKeys ?? defaultMaskedKeys)
+            .map((e) => e.toLowerCase())
+            .toSet(),
         _maskValueBuilder = maskValueBuilder;
 
   /// A reasonable default set of sensitive key names to mask out of the box.

@@ -22,9 +22,15 @@ Map<String, dynamic> _buildRealResponseBody() => {
             'metadata':
                 '{"rt": "000", "rw": "000", "new_mobile": "+10000000000"}',
             'grantedPerms': [
-              {'codename': 'core.cardstatement.can_view', 'name': 'CARDSTATEMENT_VIEW'},
+              {
+                'codename': 'core.cardstatement.can_view',
+                'name': 'CARDSTATEMENT_VIEW'
+              },
               {'codename': 'monit_card.bill.can_create', 'name': 'BILL_CREATE'},
-              {'codename': 'cashback.cashback.can_view', 'name': 'CASHBACK_VIEW'},
+              {
+                'codename': 'cashback.cashback.can_view',
+                'name': 'CASHBACK_VIEW'
+              },
               {'codename': 'core.card.can_pay', 'name': 'CARD_PAY'},
               {'codename': 'core.card.can_view', 'name': 'CARD_VIEW'},
             ],
@@ -68,7 +74,8 @@ int _countHighlightedSpans() {
     count += _countHighlightedInSpan((element.widget as RichText).text);
   }
   for (final element in find.byType(SelectableText).evaluate()) {
-    count += _countHighlightedInSpan((element.widget as SelectableText).textSpan);
+    count +=
+        _countHighlightedInSpan((element.widget as SelectableText).textSpan);
   }
   return count;
 }
@@ -88,8 +95,8 @@ bool _hasColoredSpan(InlineSpan? span, Color color) {
 int _activeSpanCount() {
   var active = 0;
   for (final element in find.byType(SelectableText).evaluate()) {
-    if (_hasColoredSpan((element.widget as SelectableText).textSpan,
-        Colors.orange)) {
+    if (_hasColoredSpan(
+        (element.widget as SelectableText).textSpan, Colors.orange)) {
       active++;
     }
   }
@@ -191,7 +198,12 @@ void main() {
   // Regression: object/array KEY names are rendered in the tree's collapsible
   // node titles. They used to be neither counted nor highlighted, so searching
   // a parent key (very common in a GraphQL response) highlighted nothing.
-  for (final query in ['currentSession', 'grantedPerms', 'device', 'permGroup']) {
+  for (final query in [
+    'currentSession',
+    'grantedPerms',
+    'device',
+    'permGroup'
+  ]) {
     testWidgets('Object/array key "$query" is highlighted in tree view',
         (tester) async {
       final controller = await _pumpWithSearch(

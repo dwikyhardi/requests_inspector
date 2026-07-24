@@ -214,12 +214,9 @@ class JsonTreeView extends StatelessWidget {
   static int countMatches(dynamic node, String query, {String? key}) {
     if (query.isEmpty) return 0;
 
-    final isEmptyCollection =
-        (node is Map<String, dynamic> && node.isEmpty) ||
-            (node is List && node.isEmpty) ||
-            (node is FormData &&
-                node.fields.isEmpty &&
-                node.files.isEmpty);
+    final isEmptyCollection = (node is Map<String, dynamic> && node.isEmpty) ||
+        (node is List && node.isEmpty) ||
+        (node is FormData && node.fields.isEmpty && node.files.isEmpty);
 
     if (node is Map<String, dynamic> && !isEmptyCollection) {
       // The node's own key is rendered (and highlighted) in the expansion-tile
@@ -249,9 +246,7 @@ class JsonTreeView extends StatelessWidget {
       return count;
     } else {
       // Leaf, including empty collections which are rendered as '{}' / '[]'.
-      final leafValue = isEmptyCollection
-          ? (node is List ? '[]' : '{}')
-          : node;
+      final leafValue = isEmptyCollection ? (node is List ? '[]' : '{}') : node;
       final formattedValue =
           (leafValue is String && leafValue != '{}' && leafValue != '[]')
               ? '"$leafValue"'
@@ -270,7 +265,8 @@ class JsonTreeView extends StatelessWidget {
       : SearchHelper.findMatches(text: _buildTitleString(key), query: query)
           .length;
 
-  static String _buildTitleString(String? key) => key != null ? '"$key" : ' : '';
+  static String _buildTitleString(String? key) =>
+      key != null ? '"$key" : ' : '';
 
   Widget _buildLeafNode(
       BuildContext context, String? key, dynamic value, int currentOffset) {

@@ -47,8 +47,7 @@ class GraphQLHelper {
   }
 
   /// Convenience accessor for the GraphQL query/mutation document.
-  static String? extractQuery(dynamic requestBody) =>
-      parse(requestBody)?.query;
+  static String? extractQuery(dynamic requestBody) => parse(requestBody)?.query;
 
   /// Convenience accessor for the GraphQL operation name.
   static String? extractOperationName(dynamic requestBody) =>
