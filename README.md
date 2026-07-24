@@ -402,7 +402,7 @@ Contributors helping improve `requests_inspector_plus`: 💻🎨📖🚧
 
 We welcome contributions from everyone\! Here's how you can help:
 
-1.  **Report Issues**: Found a bug or have a feature request? [Open an issue](https://github.com/Abdelazeem777/requests_inspector/issues)
+1.  **Report Issues**: Found a bug or have a feature request? [Open an issue](https://github.com/dwikyhardi/requests_inspector/issues)
 2.  **Submit Pull Requests**: Have a fix or improvement? We'd love to review your PR\!
 3.  **Improve Documentation**: Help us make the docs clearer and more comprehensive
 4.  **Share Feedback**: Let us know how you're using the package and what could be better

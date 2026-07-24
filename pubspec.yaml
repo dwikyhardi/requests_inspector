@@ -1,7 +1,5 @@
 name: requests_inspector_plus
-description: A Flutter package for logging REST-APIs and GraphQL requests with
-  runtime capture gating, sensitive-data masking and GraphQL operation labelling,
-  accessible by shaking your phone to open the RequestsInspector widget.
+description: Flutter REST API and GraphQL request logger with capture control, sensitive-data masking, operation labels, and a shake-to-open inspector.
 version: 1.0.0
 homepage: https://github.com/dwikyhardi/requests_inspector
 repository: https://github.com/dwikyhardi/requests_inspector
@@ -23,7 +21,7 @@ dependencies:
   graphql_flutter: ^5.3.0
   provider: ^6.1.5+1
   sensors_plus: ^7.0.0
-  share_plus: ^12.0.2
+  share_plus: ^13.3.0
 
 dev_dependencies:
   flutter_lints: ^6.0.0
