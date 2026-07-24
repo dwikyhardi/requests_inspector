@@ -1,14 +1,16 @@
 [![Stand With Palestine](https://raw.githubusercontent.com/TheBSD/StandWithPalestine/main/banner-no-action.svg)](https://thebsd.github.io/StandWithPalestine)
 
 <div align="center" bgcolor="white">
-<img src="https://raw.githubusercontent.com/Abdelazeem777/requests_inspector/main/images/logo_with_text_right.png" height= "350">
+<img src="https://raw.githubusercontent.com/dwikyhardi/requests_inspector/main/images/logo_with_text_right.png" height= "350">
 </div>
 
-# requests_inspector 🕵
+# requests_inspector_plus 🕵
 
-[![pub package](https://img.shields.io/pub/v/requests_inspector.svg)](https://pub.dev/packages/requests_inspector)
+[![pub package](https://img.shields.io/pub/v/requests_inspector_plus.svg)](https://pub.dev/packages/requests_inspector_plus)
 
 A Flutter package for **logging** API requests (**Http Requests** & **GraphQL**) requests.
+
+> `requests_inspector_plus` is a fork of [`requests_inspector`](https://github.com/Abdelazeem777/requests_inspector) by Abdelazeem Kuratem, extended with runtime capture gating, sensitive-data masking and GraphQL operation labelling.
 
 ### Main Features:
 
@@ -24,14 +26,14 @@ And more and more
 
 2.  📱👈 : **Long-Press** on any free space on the screen.
 
-<img src = "https://raw.githubusercontent.com/Abdelazeem777/requests_inspector/main/images/mobile_list.jpg" width ="280" /> <img src = "https://raw.githubusercontent.com/Abdelazeem777/requests_inspector/main/images/mobile_request.jpg" width ="280" />
+<img src = "https://raw.githubusercontent.com/dwikyhardi/requests_inspector/main/images/mobile_list.jpg" width ="280" /> <img src = "https://raw.githubusercontent.com/dwikyhardi/requests_inspector/main/images/mobile_request.jpg" width ="280" />
 
 Also you can share the request details as (**Log**, **cURL** command, or **HAR** file) with your team to help them debug the API requests.
 
 **From Inspector to Postman 🧡 🎉️**
 Now you can extract `cURL` command from the **inspector** to send the request again from your terminal or [Postman](https://www.postman.com/) 💪💪
 
-<img src="https://raw.githubusercontent.com/Abdelazeem777/requests_inspector/main/images/curl_share_request.gif" width="600"/>
+<img src="https://raw.githubusercontent.com/dwikyhardi/requests_inspector/main/images/curl_share_request.gif" width="600"/>
 
 **HAR File Support 📦 🎉️**
 You can now share requests as **HAR (HTTP Archive)** files! HAR files are a standard format that can be imported into various tools like [Postman](https://www.postman.com/), [Proxyman](https://proxyman.com/), or any HAR-compatible tool for debugging and analysis. You can share HAR files in two formats:
@@ -61,6 +63,49 @@ void main() {
 
 ```dart
 final dio = Dio()..interceptors.add(RequestsInspectorInterceptor());
+```
+
+#### Masking sensitive information
+
+Pass a `SensitiveDataMasker` to redact secret values (tokens, passwords,
+cookies, ...) from the headers, query parameters, request body, GraphQL
+variables and response body **before** they are stored for display. Masking is
+applied only to the logged copy — the real outgoing request and the live
+response are never altered.
+
+```dart
+final dio = Dio()
+  ..interceptors.add(
+    RequestsInspectorInterceptor(
+      // Uses SensitiveDataMasker.defaultMaskedKeys when `maskedKeys` is omitted.
+      masker: SensitiveDataMasker(
+        maskedKeys: {'authorization', 'password', 'staticToken'},
+        placeholder: '***',
+        // Optional: customize the masked value per key.
+        // maskValueBuilder: (key, value) => '<redacted $key>',
+      ),
+    ),
+  );
+```
+
+Matching is by **key name**, case-insensitively, and works recursively through
+nested maps/lists and even JSON encoded inside string values.
+
+#### Toggling capture at runtime
+
+Pass an `isEnabled` `ValueListenable<bool>` (e.g. a `ValueNotifier`) to turn
+capture on/off at runtime — while it is `false` nothing is recorded and the
+request/response stoppers are skipped. When omitted, capture is always on.
+
+```dart
+final networkLogEnabled = ValueNotifier<bool>(false);
+final dio = Dio()
+  ..interceptors.add(
+    RequestsInspectorInterceptor(isEnabled: networkLogEnabled),
+  );
+
+// later, from a developer-options switch:
+networkLogEnabled.value = true;
 ```
 
 ### If you don't use `Dio` then don't worry
@@ -128,13 +173,13 @@ Future<List<Post>> fetchPosts() async {
 
 ### Finaly, `Shake` your phone to get the `Inspector`
 
-\<img src = "https://raw.githubusercontent.com/Abdelazeem777/requests\_inspector/main/images/mobile\_list.jpg" width ="280" /\> \<img src = "https://raw.githubusercontent.com/Abdelazeem777/requests\_inspector/main/images/mobile\_request.jpg" width ="280" /\>
+<img src = "https://raw.githubusercontent.com/dwikyhardi/requests_inspector/main/images/mobile_list.jpg" width ="280" /> <img src = "https://raw.githubusercontent.com/dwikyhardi/requests_inspector/main/images/mobile_request.jpg" width ="280" />
 
 ---
 
 ### 2\. GraphQl:
 
-To use `requests_inspector` with [graphql_flutter](https://pub.dev/packages/graphql_flutter) library.
+To use `requests_inspector_plus` with [graphql_flutter](https://pub.dev/packages/graphql_flutter) library.
 you jus need to wrap your normal `HttpLink` with our `GraphQLInspectorLink` and we are done.
 
 **Example:**
@@ -174,7 +219,7 @@ you jus need to wrap your normal `HttpLink` with our `GraphQLInspectorLink` and 
 
 ### Stopper (Requests & Responses)
 
-`requests_inspector` **(Stopper)** enables your to stop and edit requests (before sending it to server) and responses (before receiving it inside the app).
+`requests_inspector_plus` **(Stopper)** enables your to stop and edit requests (before sending it to server) and responses (before receiving it inside the app).
 
 - First, you need to add navigatorKey to your `MaterialApp` then pass it to `RequestsInspector` to show Stopper dialogs.
 
@@ -202,7 +247,7 @@ Widget build(BuildContext context) {
 
 - Second, just enable it from Inspector and it will stop all your requests and responses.
 
-\<img src="https://raw.githubusercontent.com/Abdelazeem777/requests\_inspector/main/images/stopper\_feature.gif" width="280"/\>
+<img src="https://raw.githubusercontent.com/dwikyhardi/requests_inspector/main/images/stopper_feature.gif" width="280"/>
 
 ---
 
@@ -238,13 +283,13 @@ void main() {
 
 ## Some images
 
-<img src = "https://raw.githubusercontent.com/Abdelazeem777/requests_inspector/main/images/web_list.png" width ="280" /> <img src = "https://raw.githubusercontent.com/Abdelazeem777/requests_inspector/main/images/web_request.png" width ="280" />
-<img src = "https://raw.githubusercontent.com/Abdelazeem777/requests_inspector/main/images/mac_list.png" width ="280" /> <img src = "https://raw.githubusercontent.com/Abdelazeem777/requests_inspector/main/images/mac_request.png" width ="280" />
-<img src = "https://raw.githubusercontent.com/Abdelazeem777/requests_inspector/main/images/linux_list.png" width ="280" /> <img src = "https://raw.githubusercontent.com/Abdelazeem777/requests_inspector/main/images/linux_request.png" width ="280" />
+<img src = "https://raw.githubusercontent.com/dwikyhardi/requests_inspector/main/images/web_list.png" width ="280" /> <img src = "https://raw.githubusercontent.com/dwikyhardi/requests_inspector/main/images/web_request.png" width ="280" />
+<img src = "https://raw.githubusercontent.com/dwikyhardi/requests_inspector/main/images/mac_list.png" width ="280" /> <img src = "https://raw.githubusercontent.com/dwikyhardi/requests_inspector/main/images/mac_request.png" width ="280" />
+<img src = "https://raw.githubusercontent.com/dwikyhardi/requests_inspector/main/images/linux_list.png" width ="280" /> <img src = "https://raw.githubusercontent.com/dwikyhardi/requests_inspector/main/images/linux_request.png" width ="280" />
 
 ## 🤝 Contributors
 
-Contributors helping improve `requests_inspector`: 💻🎨📖🚧
+Contributors helping improve `requests_inspector_plus`: 💻🎨📖🚧
 
 <table>
   <tr>
@@ -343,13 +388,21 @@ Contributors helping improve `requests_inspector`: 💻🎨📖🚧
       </a>
     </td>
   </tr>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/dwikyhardi">
+        <img src="https://avatars.githubusercontent.com/u/29680162?v=4?s=100" width="70px" /><br />
+        <sub><b>Dwiky</b></sub>
+      </a>
+    </td>
+  </tr>
 </table>
 
 ### How to Contribute
 
 We welcome contributions from everyone\! Here's how you can help:
 
-1.  **Report Issues**: Found a bug or have a feature request? [Open an issue](https://github.com/Abdelazeem777/requests_inspector/issues)
+1.  **Report Issues**: Found a bug or have a feature request? [Open an issue](https://github.com/dwikyhardi/requests_inspector/issues)
 2.  **Submit Pull Requests**: Have a fix or improvement? We'd love to review your PR\!
 3.  **Improve Documentation**: Help us make the docs clearer and more comprehensive
 4.  **Share Feedback**: Let us know how you're using the package and what could be better
@@ -368,9 +421,9 @@ To add yourself as a contributor, simply follow the contribution guidelines and 
 - [x] Powerful JSON Tree View.
 - [x] Collapsable separated sections.
 - [x] Click to Copy Content of each section.
+- [x] 'WillPopScope' is deprecated and shouldn't be used. Use PopScope instead. The Android predictive back feature will not work with WillPopScope.
 - [ ] Add search inside the request details page.
 - [ ] Add Http Interceptor.
-- [ ] 'WillPopScope' is deprecated and shouldn't be used. Use PopScope instead. The Android predictive back feature will not work with WillPopScope.
 
 ---
 

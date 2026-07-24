@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:requests_inspector/src/json_pretty_converter.dart';
+import 'package:requests_inspector_plus/src/json_pretty_converter.dart';
 
-import '../requests_inspector.dart';
+import '../requests_inspector_plus.dart';
 import 'shared_widgets/inspector_dialog_text_field.dart';
 
 class RequestStopperEditorDialog extends StatefulWidget {
@@ -19,6 +19,17 @@ class _RequestStopperEditorDialogState
     extends State<RequestStopperEditorDialog> {
   RequestDetails? _newRequestDetails;
 
+  bool get _isDarkMode => InspectorController().isDarkMode;
+
+  Color get _dialogBackgroundColor =>
+      _isDarkMode ? const Color.fromARGB(255, 34, 32, 32) : Colors.white;
+
+  Color get _fieldColor => _isDarkMode
+      ? const Color.fromARGB(255, 19, 19, 19)
+      : const Color.fromARGB(255, 235, 235, 235);
+
+  Color get _foregroundColor => _isDarkMode ? Colors.white : Colors.black;
+
   @override
   void initState() {
     super.initState();
@@ -28,9 +39,11 @@ class _RequestStopperEditorDialogState
   @override
   Widget build(BuildContext context) {
     return Theme(
-      data: ThemeData.dark().copyWith(
-        colorScheme: ColorScheme.dark(primary: Colors.grey[800]!),
-      ),
+      data: _isDarkMode
+          ? ThemeData.dark().copyWith(
+              colorScheme: ColorScheme.dark(primary: Colors.grey[800]!),
+            )
+          : ThemeData.light(),
       child: Directionality(
         textDirection: TextDirection.ltr,
         child: AlertDialog(
@@ -41,9 +54,9 @@ class _RequestStopperEditorDialogState
           ),
           contentPadding: EdgeInsets.zero,
           insetPadding: const EdgeInsets.all(16.0),
-          backgroundColor: const Color.fromARGB(255, 34, 32, 32),
+          backgroundColor: _dialogBackgroundColor,
           content: SizedBox(
-            width: MediaQuery.of(context).size.width,
+            width: MediaQuery.sizeOf(context).width,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -52,7 +65,7 @@ class _RequestStopperEditorDialogState
                   padding: const EdgeInsets.all(8.0),
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      foregroundColor: Colors.white,
+                      foregroundColor: _foregroundColor,
                     ),
                     child: const Text('Send'),
                     onPressed: () =>
@@ -81,10 +94,10 @@ class _RequestStopperEditorDialogState
               DecoratedBox(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(4.0),
-                  color: const Color.fromARGB(255, 19, 19, 19),
+                  color: _fieldColor,
                 ),
                 child: DropdownButton<RequestMethod>(
-                  dropdownColor: const Color.fromARGB(255, 19, 19, 19),
+                  dropdownColor: _fieldColor,
                   value: _newRequestDetails?.requestMethod,
                   underline: const SizedBox(),
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),

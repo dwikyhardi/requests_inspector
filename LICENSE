@@ -1,6 +1,7 @@
 MIT License
 
-Copyright (c) 2021 Abdelazeem Kuratem
+Copyright (c) 2021 Abdelazeem Kuratem (original `requests_inspector`)
+Copyright (c) 2026 Dwiky Hardiansyah (`requests_inspector_plus` fork)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

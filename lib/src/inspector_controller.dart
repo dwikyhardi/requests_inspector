@@ -1,15 +1,15 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:requests_inspector/src/shake.dart';
-import 'package:requests_inspector/src/stopper_filter.dart';
+import 'package:requests_inspector_plus/src/shake.dart';
+import 'package:requests_inspector_plus/src/stopper_filter.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../requests_inspector.dart';
+import '../requests_inspector_plus.dart';
 import 'curl_command_generator.dart';
 import 'har_generator.dart';
 import 'json_pretty_converter.dart';
-import 'helpers/inspector_helper.dart';
+import 'helpers/request_search_scanner.dart';
 import 'enums/share_type_enum.dart';
 import 'requests_filter.dart';
 
@@ -55,11 +55,12 @@ class InspectorController extends ChangeNotifier {
         _expandChildren = defaultExpandChildren,
         _isDarkMode = defaultIsDarkMode,
         _onStoppingResponse = onStoppingResponse {
-    if (_enabled && _allowShaking)
+    if (_enabled && _allowShaking) {
       _shakeDetector = ShakeDetector.autoStart(
         onPhoneShake: showInspector,
         minimumShakeCount: 3,
       );
+    }
   }
 
   static InspectorController? _singleton;
@@ -71,12 +72,19 @@ class InspectorController extends ChangeNotifier {
   StoppingResponseCallback? _onStoppingResponse;
 
   final _dio = Dio(BaseOptions(validateStatus: (_) => true));
-  final pageController = PageController(
-    initialPage: 0,
-    // if the viewportFraction is 1.0, the child pages will rebuild automatically
-    // but if it less than 1.0, the pages will stay alive
-    viewportFraction: 0.9999999,
-  );
+
+  /// Drives which page is shown by the host's [IndexedStack]:
+  /// 0 = the wrapped app, 1 = the inspector.
+  ///
+  /// Previously this was a [PageController] feeding a [PageView]. The PageView
+  /// is a scrollable viewport that sizes each page from floating-point scroll
+  /// geometry, so the width handed to the app could be off by a sub-pixel
+  /// fraction and trigger spurious "RenderFlex overflowed by 0.00004 pixels"
+  /// errors in descendant Rows. Since the pager was never swipeable
+  /// (NeverScrollableScrollPhysics) and switched pages instantly
+  /// (jumpToPage), a plain index notifier driving an IndexedStack is
+  /// behaviorally identical and lays children out with real tight constraints.
+  final currentPage = ValueNotifier<int>(0);
 
   int _selectedTab = 0;
   bool _requestStopperEnabled = false;
@@ -106,11 +114,15 @@ class InspectorController extends ChangeNotifier {
   String? _requestStopperFilterUrl;
   int? _responseStopperFilterStatusCode;
   String? _responseStopperFilterUrl;
+
   // ------------------------------
 
   RequestMethod? get requestStopperFilterMethod => _requestStopperFilterMethod;
+
   String? get requestStopperFilterUrl => _requestStopperFilterUrl;
+
   int? get responseStopperFilterStatusCode => _responseStopperFilterStatusCode;
+
   String? get responseStopperFilterUrl => _responseStopperFilterUrl;
 
   bool get hasRequestStopperFilters =>
@@ -162,16 +174,19 @@ class InspectorController extends ChangeNotifier {
   List<RequestDetails> get filteredRequestsList {
     Iterable<RequestDetails> list = [..._requestsList];
 
-    if (_filterRequestMethod != null)
+    if (_filterRequestMethod != null) {
       list =
           list.where(RequestMethodFilter(_filterRequestMethod!).requestFilter);
+    }
 
-    if (_filterStatusCode != null)
+    if (_filterStatusCode != null) {
       list =
           list.where(RequestStatusCodeFilter(_filterStatusCode!).requestFilter);
+    }
 
-    if (_searchUrlQuery.trim().isNotEmpty)
-      list = list.where(RequestUrlFilter(_searchUrlQuery).requestFilter);
+    if (_searchUrlQuery.trim().isNotEmpty) {
+      list = list.where(RequestSearchFilter(_searchUrlQuery).requestFilter);
+    }
 
     return list.toList(growable: false);
   }
@@ -298,9 +313,9 @@ class InspectorController extends ChangeNotifier {
     return filter.shouldStop(responseDetails);
   }
 
-  void showInspector() => pageController.jumpToPage(1);
+  void showInspector() => currentPage.value = 1;
 
-  void hideInspector() => pageController.jumpToPage(0);
+  void hideInspector() => currentPage.value = 0;
 
   void addNewRequest(RequestDetails request) {
     if (!_enabled) return;
@@ -377,10 +392,8 @@ class InspectorController extends ChangeNotifier {
         mimeType: 'application/json',
       );
 
-      Share.shareXFiles(
-        [file],
-        sharePositionOrigin: sharePositionOrigin,
-      );
+      SharePlus.instance.share(
+          ShareParams(files: [file], sharePositionOrigin: sharePositionOrigin));
       return;
     } else {
       final curlCommandGenerator = CurlCommandGenerator(_selectedRequest!);
@@ -393,16 +406,17 @@ class InspectorController extends ChangeNotifier {
           '================[cURL Command]=================\n$curlContent\n\n==================[Normal Log]===================\n$normalLogContent';
     }
 
-    Share.share(
-      requestShareContent,
+    SharePlus.instance.share(ShareParams(
+      text: requestShareContent,
       sharePositionOrigin: sharePositionOrigin,
-    );
+    ));
   }
 
   @override
   void dispose() {
     if (_allowShaking) _shakeDetector.stopListening();
     _singleton = null;
+    currentPage.dispose();
     super.dispose();
   }
 
@@ -443,6 +457,9 @@ class InspectorController extends ChangeNotifier {
 
   void toggleInspectorJsonView() {
     _isTreeView = !_isTreeView;
+    // The GraphQL query is linearized differently in tree vs. text mode, so the
+    // total match count must be recomputed to stay aligned with the page.
+    if (_searchQuery.isNotEmpty) _updateTotalMatches();
     notifyListeners();
   }
 
@@ -484,56 +501,20 @@ class InspectorController extends ChangeNotifier {
   void _updateTotalMatches() {
     if (_searchQuery.isEmpty || _selectedRequest == null) {
       _totalMatches = 0;
+      _currentMatchIndex = -1;
       return;
     }
 
-    final allText = _extractAllText(_selectedRequest!);
-    final query = _searchQuery.toLowerCase();
-    final text = allText.toLowerCase();
-
-    var count = 0;
-    var index = text.indexOf(query);
-    while (index != -1) {
-      count++;
-      index = text.indexOf(query, index + query.length);
-    }
-    _totalMatches = count;
-    _currentMatchIndex = count > 0 ? 0 : -1;
-  }
-
-  String _extractAllText(RequestDetails request) {
-    final converter = JsonPrettyConverter();
-    final parts = <String>[];
-
-    final sentTimeText = InspectorHelper.extractTimeText(request.sentTime);
-    var text = 'Sent at: $sentTimeText';
-
-    if (request.receivedTime != null) {
-      final receivedTimeText =
-          InspectorHelper.extractTimeText(request.receivedTime!);
-      final durationText = InspectorHelper.calculateDuration(
-          request.sentTime, request.receivedTime!);
-      text += '\nReceived at: $receivedTimeText\nDuration: $durationText';
-    }
-
-    text += '\n\nURL: ${request.url}';
-    parts.add(text);
-
-    if (request.headers != null) parts.add(converter.convert(request.headers));
-    if (request.queryParameters != null) {
-      parts.add(converter.convert(request.queryParameters));
-    }
-    if (request.requestBody != null) {
-      parts.add(converter.convert(request.requestBody));
-    }
-    if (request.graphqlRequestVars != null) {
-      parts.add(converter.convert(request.graphqlRequestVars));
-    }
-    if (request.responseBody != null) {
-      parts.add(converter.convert(request.responseBody));
-    }
-
-    return parts.join('\n');
+    // Count exactly the matches the page renders (and in the same per-section
+    // order it reserves offsets for) so [totalMatches] and the active-match
+    // navigation can never land on a match index that has no highlight.
+    final scanner = RequestSearchScanner(
+      request: _selectedRequest!,
+      query: _searchQuery,
+      isTreeView: _isTreeView,
+    );
+    _totalMatches = scanner.total;
+    _currentMatchIndex = scanner.total > 0 ? 0 : -1;
   }
 
   void toggleExpandChildren() {

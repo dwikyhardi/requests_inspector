@@ -2,10 +2,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:requests_inspector/src/request_stopper_editor_dialog.dart';
-import 'package:requests_inspector/src/response_stopper_editor_dialog.dart';
-import 'package:requests_inspector/src/shared_widgets/inspector.dart';
-import '../requests_inspector.dart';
+import 'package:requests_inspector_plus/src/shared_widgets/inspector.dart';
+import '../requests_inspector_plus.dart';
 
 ///You can show the Inspector by **Shaking** your phone.
 class RequestsInspector extends StatelessWidget {
@@ -45,9 +43,7 @@ class RequestsInspector extends StatelessWidget {
         ? ChangeNotifierProvider(
             create: (context) => InspectorController(
               enabled: _enabled,
-              showInspectorOn: _isSupportShaking()
-                  ? _showInspectorOn
-                  : ShowInspectorOn.LongPress,
+              showInspectorOn: _effectiveShowInspectorOn,
               defaultTreeViewEnabled: _defaultTreeViewEnabled,
               defaultExpandChildren: _defaultExpandChildren,
               defaultIsDarkMode: _defaultIsDarkMode,
@@ -63,22 +59,25 @@ class RequestsInspector extends StatelessWidget {
             ),
             lazy: false,
             builder: (context, _) {
-              return WillPopScope(
-                onWillPop: () async =>
-                    InspectorController().pageController.page == 0,
-                child: GestureDetector(
-                  onLongPress: _showInspectorOn != ShowInspectorOn.Shaking
-                      ? InspectorController().showInspector
-                      : null,
-                  child: PageView(
-                    controller: InspectorController().pageController,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      _child,
-                      Inspector(navigatorKey: _navigatorKey),
-                    ],
-                  ),
-                ),
+              return ValueListenableBuilder<int>(
+                valueListenable: InspectorController().currentPage,
+                builder: (context, currentPage, child) {
+                  return PopScope(
+                    canPop: currentPage == 0,
+                    child: GestureDetector(
+                      onLongPress: _allowLongPress
+                          ? InspectorController().showInspector
+                          : null,
+                      child: IndexedStack(
+                        index: currentPage,
+                        children: [
+                          _child,
+                          Inspector(navigatorKey: _navigatorKey),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               );
             },
           )
@@ -98,6 +97,19 @@ class RequestsInspector extends StatelessWidget {
 
   bool _isSupportShaking() =>
       kIsWeb ? false : Platform.isAndroid || Platform.isIOS;
+
+  /// Resolves the effective trigger, falling back to long press only when
+  /// shaking is requested but not supported. `None` is always preserved so the
+  /// inspector is never shown by long press or shaking.
+  ShowInspectorOn get _effectiveShowInspectorOn {
+    if (_showInspectorOn == ShowInspectorOn.None) return ShowInspectorOn.None;
+    return _isSupportShaking() ? _showInspectorOn : ShowInspectorOn.LongPress;
+  }
+
+  bool get _allowLongPress => [
+        ShowInspectorOn.LongPress,
+        ShowInspectorOn.Both,
+      ].contains(_effectiveShowInspectorOn);
 
   Future<RequestDetails?> _showRequestEditorDialog(
     BuildContext context, {

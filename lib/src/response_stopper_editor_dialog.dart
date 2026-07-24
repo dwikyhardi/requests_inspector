@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:requests_inspector/src/json_pretty_converter.dart';
-import 'response_details.dart';
+import 'package:requests_inspector_plus/requests_inspector_plus.dart';
+import 'package:requests_inspector_plus/src/json_pretty_converter.dart';
 
 import 'shared_widgets/inspector_dialog_text_field.dart';
 
@@ -22,6 +22,17 @@ class _ResponseStopperEditorDialogState
     extends State<ResponseStopperEditorDialog> {
   late ResponseDetails _newResponseDetails;
 
+  bool get _isDarkMode => InspectorController().isDarkMode;
+
+  Color get _dialogBackgroundColor =>
+      _isDarkMode ? const Color.fromARGB(255, 34, 32, 32) : Colors.white;
+
+  Color get _fieldColor => _isDarkMode
+      ? const Color.fromARGB(255, 19, 19, 19)
+      : const Color.fromARGB(255, 235, 235, 235);
+
+  Color get _foregroundColor => _isDarkMode ? Colors.white : Colors.black;
+
   @override
   void initState() {
     super.initState();
@@ -31,9 +42,11 @@ class _ResponseStopperEditorDialogState
   @override
   Widget build(BuildContext context) {
     return Theme(
-      data: ThemeData.dark().copyWith(
-        colorScheme: ColorScheme.dark(primary: Colors.grey[800]!),
-      ),
+      data: _isDarkMode
+          ? ThemeData.dark().copyWith(
+              colorScheme: ColorScheme.dark(primary: Colors.grey[800]!),
+            )
+          : ThemeData.light(),
       child: Directionality(
         textDirection: TextDirection.ltr,
         child: AlertDialog(
@@ -44,9 +57,9 @@ class _ResponseStopperEditorDialogState
           ),
           contentPadding: EdgeInsets.zero,
           insetPadding: const EdgeInsets.all(16.0),
-          backgroundColor: const Color.fromARGB(255, 34, 32, 32),
+          backgroundColor: _dialogBackgroundColor,
           content: SizedBox(
-            width: MediaQuery.of(context).size.width,
+            width: MediaQuery.sizeOf(context).width,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -54,8 +67,8 @@ class _ResponseStopperEditorDialogState
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: ElevatedButton(
-                    style:
-                        ElevatedButton.styleFrom(foregroundColor: Colors.white),
+                    style: ElevatedButton.styleFrom(
+                        foregroundColor: _foregroundColor),
                     child: const Text('Receive'),
                     onPressed: () =>
                         Navigator.of(context).pop(_newResponseDetails),
@@ -99,12 +112,12 @@ class _ResponseStopperEditorDialogState
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(4.0),
-            color: const Color.fromARGB(255, 19, 19, 19),
+            color: _fieldColor,
             border: Border.all(color: Colors.grey[600]!),
           ),
           child: TextFormField(
             initialValue: _newResponseDetails.statusCode.toString(),
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: _foregroundColor),
             keyboardType: TextInputType.number,
             inputFormatters: [
               FilteringTextInputFormatter.digitsOnly,

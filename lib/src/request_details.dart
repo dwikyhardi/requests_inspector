@@ -1,7 +1,8 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:convert';
 
-import 'package:requests_inspector/requests_inspector.dart';
+import 'package:requests_inspector_plus/requests_inspector_plus.dart';
+import 'package:requests_inspector_plus/src/helpers/graphql_helper.dart';
 
 class RequestDetails {
   late final String requestName;
@@ -30,7 +31,9 @@ class RequestDetails {
     DateTime? sentTime,
     this.receivedTime,
   }) {
-    this.requestName = requestName?.toUpperCase() ?? _extractName(url);
+    this.requestName = requestName ??
+        GraphQLHelper.extractOperationName(requestBody) ??
+        _extractName(url);
     this.sentTime = sentTime ?? DateTime.now();
     _id = _generateId();
   }

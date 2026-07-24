@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:requests_inspector/src/enums/requests_methods.dart';
-import 'package:requests_inspector/src/inspector_controller.dart';
+import 'package:requests_inspector_plus/src/enums/requests_methods.dart';
+import 'package:requests_inspector_plus/src/inspector_controller.dart';
 
 class StopperFiltersDialog extends StatefulWidget {
   const StopperFiltersDialog({
@@ -81,7 +81,7 @@ class _StopperFiltersDialogState extends State<StopperFiltersDialog> {
                   border: OutlineInputBorder(),
                   isDense: true,
                 ),
-                value: _selectedMethod,
+                initialValue: _selectedMethod,
                 items: [
                   const DropdownMenuItem<RequestMethod?>(
                     value: null,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:requests_inspector/src/inspector_controller.dart';
+import 'package:requests_inspector_plus/src/inspector_controller.dart';
 
 class SearchWidget extends StatefulWidget {
   final bool isDarkMode;

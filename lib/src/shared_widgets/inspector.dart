@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:requests_inspector/src/filters_dialog.dart';
-import 'package:requests_inspector/src/shared_widgets/inspector_option_switch.dart';
-import 'package:requests_inspector/src/shared_widgets/request_details_page.dart';
-import 'package:requests_inspector/src/shared_widgets/request_item.dart';
-import 'package:requests_inspector/src/shared_widgets/run_again_widget.dart';
-import 'package:requests_inspector/src/stopper_filters_dialog.dart';
-import '../../requests_inspector.dart';
+import 'package:requests_inspector_plus/src/filters_dialog.dart';
+import 'package:requests_inspector_plus/src/shared_widgets/inspector_option_switch.dart';
+import 'package:requests_inspector_plus/src/shared_widgets/request_details_page.dart';
+import 'package:requests_inspector_plus/src/shared_widgets/request_item.dart';
+import 'package:requests_inspector_plus/src/shared_widgets/run_again_widget.dart';
+import 'package:requests_inspector_plus/src/stopper_filters_dialog.dart';
+import '../../requests_inspector_plus.dart';
 import '../enums/share_type_enum.dart';
 
 class Inspector extends StatelessWidget {
@@ -416,6 +416,7 @@ class Inspector extends StatelessWidget {
                     isHttp ? await _showDialogShareType(context) : null;
 
                 if (shareType == null) return;
+                if (!context.mounted) return;
 
                 if (shareType == ShareType.Har) {
                   shareType = await _showHarFormatDialog(context);
@@ -450,22 +451,16 @@ class Inspector extends StatelessWidget {
         content: const Text('Choose your preferred share format'),
         actions: [
           TextButton(
-            child: const Text(
-              'cURL Command',
-              style: TextStyle(color: Colors.green),
-            ),
+            child: const Text('cURL Command'),
             onPressed: () => Navigator.of(context).pop(ShareType.CurlCommand),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(ShareType.NormalLog),
-            child: const Text(
-              'Normal Log',
-              style: TextStyle(color: Colors.yellow),
-            ),
+            child: const Text('Normal Log'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(ShareType.Both),
-            child: const Text('Both', style: TextStyle(color: Colors.red)),
+            child: const Text('Both'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(ShareType.Har),
@@ -576,7 +571,23 @@ class _SearchField extends StatefulWidget {
 }
 
 class __SearchFieldState extends State<_SearchField> {
-  final TextEditingController _controller = TextEditingController();
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.searchQuery);
+
+  @override
+  void didUpdateWidget(covariant _SearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Keep the field in sync with the search query held by the controller so
+    // that the text never desyncs from the actually applied filter (e.g. when
+    // this widget's State is recreated after switching tabs while a query is
+    // still active, or when the search is cleared programmatically).
+    if (widget.searchQuery != _controller.text) {
+      _controller.value = TextEditingValue(
+        text: widget.searchQuery,
+        selection: TextSelection.collapsed(offset: widget.searchQuery.length),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -589,7 +600,7 @@ class __SearchFieldState extends State<_SearchField> {
     return TextField(
       controller: _controller,
       decoration: InputDecoration(
-        hintText: 'Search by URL',
+        hintText: 'Search',
         fillColor: widget.isDarkMode ? Colors.black : Colors.white,
         filled: true,
         prefixIcon: const Icon(Icons.search),

@@ -86,7 +86,10 @@ class JsonTreeView extends StatelessWidget {
     }
 
     final children = <Widget>[];
-    var offset = currentOffset;
+    // The node's own key (rendered in the title) takes the first match indices,
+    // so children start after the title's matches.
+    final titleCount = titleMatchCount(keyName, searchQuery);
+    var offset = currentOffset + titleCount;
 
     for (final entry in map.entries) {
       children.add(_buildNode(context, entry.value,
@@ -99,7 +102,7 @@ class JsonTreeView extends StatelessWidget {
     final totalMatches = _countMatchesInNode(map, keyName);
 
     return _CustomExpansionTile(
-      titleString: keyName != null ? '"$keyName" : ' : '',
+      titleString: _buildTitleString(keyName),
       children: children,
       collapsedCount: map.length,
       isObject: true,
@@ -107,6 +110,7 @@ class JsonTreeView extends StatelessWidget {
       isDarkMode: _isDarkMode,
       matchIndexOffset: currentOffset,
       totalMatches: totalMatches,
+      searchQuery: searchQuery,
     );
   }
 
@@ -122,7 +126,8 @@ class JsonTreeView extends StatelessWidget {
     }
 
     final children = <Widget>[];
-    var offset = currentOffset;
+    final titleCount = titleMatchCount(keyName, searchQuery);
+    var offset = currentOffset + titleCount;
 
     for (final item in list) {
       children.add(_buildNode(context, item, currentOffset: offset));
@@ -134,7 +139,7 @@ class JsonTreeView extends StatelessWidget {
     final totalMatches = _countMatchesInNode(list, keyName);
 
     return _CustomExpansionTile(
-      titleString: keyName != null ? '"$keyName" : ' : '',
+      titleString: _buildTitleString(keyName),
       children: children,
       collapsedCount: list.length,
       isObject: false,
@@ -142,6 +147,7 @@ class JsonTreeView extends StatelessWidget {
       isDarkMode: _isDarkMode,
       matchIndexOffset: currentOffset,
       totalMatches: totalMatches,
+      searchQuery: searchQuery,
     );
   }
 
@@ -158,7 +164,8 @@ class JsonTreeView extends StatelessWidget {
     }
 
     final children = <Widget>[];
-    var offset = currentOffset;
+    final titleCount = titleMatchCount(keyName, searchQuery);
+    var offset = currentOffset + titleCount;
 
     for (final field in formData.fields) {
       children.add(_buildNode(context, field.value,
@@ -180,7 +187,7 @@ class JsonTreeView extends StatelessWidget {
     final totalMatches = _countMatchesInNode(formData, keyName);
 
     return _CustomExpansionTile(
-      titleString: keyName != null ? '"$keyName" : ' : '',
+      titleString: _buildTitleString(keyName),
       children: children,
       collapsedCount: length,
       isObject: true,
@@ -188,46 +195,78 @@ class JsonTreeView extends StatelessWidget {
       isDarkMode: _isDarkMode,
       matchIndexOffset: currentOffset,
       totalMatches: totalMatches,
+      searchQuery: searchQuery,
     );
   }
 
-  int _countMatchesInNode(dynamic node, String? key) {
-    if (searchQuery.isEmpty) return 0;
+  int _countMatchesInNode(dynamic node, String? key) =>
+      countMatches(node, searchQuery, key: key);
 
-    if (node is Map<String, dynamic>) {
-      var count = 0;
+  /// Counts the search matches that this widget will actually render and
+  /// highlight for [data] with the given [query].
+  ///
+  /// This must be used (instead of counting matches in pretty-printed JSON) by
+  /// any code that reserves match-index offsets for a section rendered by
+  /// [JsonTreeView]. The tree linearizes data into `"key" : value,` rows and
+  /// renders non-`Map<String, dynamic>` values as a single leaf, so counting
+  /// over pretty JSON would diverge from what is highlighted and desync the
+  /// active-match navigation.
+  static int countMatches(dynamic node, String query, {String? key}) {
+    if (query.isEmpty) return 0;
+
+    final isEmptyCollection = (node is Map<String, dynamic> && node.isEmpty) ||
+        (node is List && node.isEmpty) ||
+        (node is FormData && node.fields.isEmpty && node.files.isEmpty);
+
+    if (node is Map<String, dynamic> && !isEmptyCollection) {
+      // The node's own key is rendered (and highlighted) in the expansion-tile
+      // title, so it must be counted here too, before its children.
+      var count = titleMatchCount(key, query);
       for (final entry in node.entries) {
-        count += _countMatchesInNode(entry.value, entry.key);
+        count += countMatches(entry.value, query, key: entry.key);
       }
       return count;
-    } else if (node is List) {
-      var count = 0;
+    } else if (node is List && !isEmptyCollection) {
+      var count = titleMatchCount(key, query);
       for (final item in node) {
-        count += _countMatchesInNode(item, null);
+        count += countMatches(item, query);
       }
       return count;
-    } else if (node is FormData) {
-      var count = 0;
+    } else if (node is FormData && !isEmptyCollection) {
+      var count = titleMatchCount(key, query);
       for (final field in node.fields) {
-        count += _countMatchesInNode(field.value, field.key);
+        count += countMatches(field.value, query, key: field.key);
       }
       for (final file in node.files) {
         final sizeInMb = file.value.length ~/ 1024;
         final fileSizeString = '${sizeInMb.toStringAsFixed(1)} kb';
         final nodeValue = "($fileSizeString) - ${file.value.filename}";
-        count += _countMatchesInNode(nodeValue, file.key);
+        count += countMatches(nodeValue, query, key: file.key);
       }
       return count;
     } else {
-      final formattedValue = (node is String && node != '{}' && node != '[]')
-          ? '"$node"'
-          : '$node';
+      // Leaf, including empty collections which are rendered as '{}' / '[]'.
+      final leafValue = isEmptyCollection ? (node is List ? '[]' : '{}') : node;
+      final formattedValue =
+          (leafValue is String && leafValue != '{}' && leafValue != '[]')
+              ? '"$leafValue"'
+              : '$leafValue';
       final fullText =
           '${key != null ? '"$key" : ' : ''}$formattedValue${key != null ? ',' : ''}';
-      return SearchHelper.findMatches(text: fullText, query: searchQuery)
-          .length;
+      return SearchHelper.findMatches(text: fullText, query: query).length;
     }
   }
+
+  /// The number of matches in an object/array node's rendered title prefix
+  /// (`"key" : `). Kept identical to the title text built by
+  /// [_buildTitleString] so the reserved offsets line up with the highlights.
+  static int titleMatchCount(String? key, String query) => key == null
+      ? 0
+      : SearchHelper.findMatches(text: _buildTitleString(key), query: query)
+          .length;
+
+  static String _buildTitleString(String? key) =>
+      key != null ? '"$key" : ' : '';
 
   Widget _buildLeafNode(
       BuildContext context, String? key, dynamic value, int currentOffset) {
@@ -323,6 +362,7 @@ class _CustomExpansionTile extends StatefulWidget {
 
   final int matchIndexOffset;
   final int totalMatches;
+  final String searchQuery;
 
   const _CustomExpansionTile({
     required this.titleString,
@@ -333,6 +373,7 @@ class _CustomExpansionTile extends StatefulWidget {
     required this.isDarkMode,
     this.matchIndexOffset = 0,
     this.totalMatches = 0,
+    this.searchQuery = '',
   });
 
   @override
@@ -362,9 +403,6 @@ class _CustomExpansionTileState extends State<_CustomExpansionTile>
     final textColor = widget.isDarkMode ? Colors.white : Colors.black87;
     final secondaryTextColor =
         widget.isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600;
-
-    final bool hasTitleString =
-        widget.titleString != null && widget.titleString!.isNotEmpty;
 
     return Selector<InspectorController, int>(
       selector: (_, controller) => controller.currentMatchIndex,
@@ -411,59 +449,7 @@ class _CustomExpansionTileState extends State<_CustomExpansionTile>
                       const SizedBox(width: 4),
                       Flexible(
                         fit: FlexFit.loose,
-                        child: Text.rich(
-                          TextSpan(
-                            children: [
-                              if (hasTitleString)
-                                TextSpan(
-                                  text: widget.titleString,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 14,
-                                    color: textColor,
-                                  ),
-                                ),
-                              if (_expanded)
-                                TextSpan(
-                                  text: widget.isObject ? '{' : '[',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 14,
-                                    color: textColor,
-                                  ),
-                                )
-                              else
-                                TextSpan(
-                                  children: [
-                                    TextSpan(
-                                      text: widget.isObject ? '{' : '[',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: textColor,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    if (widget.collapsedCount != null)
-                                      TextSpan(
-                                        text: widget.collapsedCount.toString(),
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: secondaryTextColor,
-                                        ),
-                                      ),
-                                    TextSpan(
-                                      text: widget.isObject ? '} ,' : '] ,',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: textColor,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                            ],
-                          ),
-                        ),
+                        child: _buildTitle(textColor, secondaryTextColor),
                       ),
                     ],
                   ),
@@ -481,6 +467,62 @@ class _CustomExpansionTileState extends State<_CustomExpansionTile>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildTitle(Color textColor, Color secondaryTextColor) {
+    final titleStyle = TextStyle(
+      fontWeight: FontWeight.w500,
+      fontSize: 14,
+      color: textColor,
+    );
+    final hasTitleString =
+        widget.titleString != null && widget.titleString!.isNotEmpty;
+
+    final bracketSpans = <InlineSpan>[
+      if (_expanded)
+        TextSpan(text: widget.isObject ? '{' : '[', style: titleStyle)
+      else ...[
+        TextSpan(text: widget.isObject ? '{' : '[', style: titleStyle),
+        if (widget.collapsedCount != null)
+          TextSpan(
+            text: widget.collapsedCount.toString(),
+            style: TextStyle(fontSize: 14, color: secondaryTextColor),
+          ),
+        TextSpan(text: widget.isObject ? '} ,' : '] ,', style: titleStyle),
+      ],
+    ];
+
+    // While searching, highlight the object/array key. It is rendered first so
+    // its match indices line up with the offsets [JsonTreeView] reserves for
+    // the title; the structural brackets/count are never searched.
+    if (hasTitleString && widget.searchQuery.isNotEmpty) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Flexible(
+            child: HighlightedText(
+              text: widget.titleString,
+              searchQuery: widget.searchQuery,
+              isDarkMode: widget.isDarkMode,
+              matchIndexOffset: widget.matchIndexOffset,
+              style: titleStyle,
+            ),
+          ),
+          Text.rich(TextSpan(children: bracketSpans)),
+        ],
+      );
+    }
+
+    return Text.rich(
+      TextSpan(
+        children: [
+          if (hasTitleString)
+            TextSpan(text: widget.titleString, style: titleStyle),
+          ...bracketSpans,
+        ],
+      ),
     );
   }
 }

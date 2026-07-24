@@ -2,10 +2,13 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:requests_inspector/requests_inspector.dart';
-import 'package:requests_inspector/src/json_pretty_converter.dart';
+import 'package:requests_inspector_plus/requests_inspector_plus.dart';
+import 'package:requests_inspector_plus/src/json_pretty_converter.dart';
 
+import '../graphql_tree_view_widget.dart';
+import '../helpers/graphql_helper.dart';
 import '../helpers/inspector_helper.dart';
+import '../helpers/request_search_scanner.dart';
 import '../helpers/search_helper.dart';
 import '../json_tree_view_widget.dart';
 import 'highlighted_text.dart';
@@ -85,87 +88,46 @@ class RequestDetailsPage extends StatelessWidget {
       builder: (context, state, _) {
         final query = state.searchQuery;
 
-        var currentOffset = 0;
+        // Single source of truth for per-section match counts and offsets,
+        // shared with [InspectorController] so the highlighted matches, the
+        // reserved offsets and the total count can never drift apart. Only the
+        // sections actually rendered below are counted (e.g. the raw request
+        // body is not counted when a GraphQL query is shown in its place).
+        final scanner = RequestSearchScanner(
+          request: request,
+          query: query,
+          isTreeView: state.isTreeView,
+        );
 
-        final sentTimeText = InspectorHelper.extractTimeText(request.sentTime);
-        var timeAndUrlText = 'Sent at: $sentTimeText';
+        final timeAndUrlOffset = scanner.timeAndUrlOffset;
+        final headersOffset = scanner.headersOffset;
+        final queryParamsOffset = scanner.queryParamsOffset;
+        final graphqlQueryOffset = scanner.graphqlQueryOffset;
+        final requestBodyOffset = scanner.requestBodyOffset;
+        final graphqlVarsOffset = scanner.graphqlVarsOffset;
+        final responseBodyOffset = scanner.responseBodyOffset;
 
-        if (request.receivedTime != null) {
-          final receivedTimeText =
-              InspectorHelper.extractTimeText(request.receivedTime!);
-          final durationText = InspectorHelper.calculateDuration(
-              request.sentTime, request.receivedTime!);
-          timeAndUrlText +=
-              '\nReceived at: $receivedTimeText\nDuration: $durationText';
-        }
-
-        timeAndUrlText += '\n\nURL: ${request.url}';
-
-        final timeAndUrlMatches =
-            SearchHelper.findMatches(text: timeAndUrlText, query: query).length;
-        final timeAndUrlOffset = currentOffset;
-        currentOffset += timeAndUrlMatches;
-
-        final headersPretty = request.headers != null
-            ? JsonPrettyConverter().convert(request.headers)
-            : '';
-        final headersMatches =
-            SearchHelper.findMatches(text: headersPretty, query: query).length;
-        final headersOffset = currentOffset;
-        currentOffset += headersMatches;
-
-        final queryParamsPretty = request.queryParameters != null
-            ? JsonPrettyConverter().convert(request.queryParameters)
-            : '';
-        final queryParamsMatches =
-            SearchHelper.findMatches(text: queryParamsPretty, query: query)
-                .length;
-        final queryParamsOffset = currentOffset;
-        currentOffset += queryParamsMatches;
-
-        final requestBodyPretty = request.requestBody != null
-            ? JsonPrettyConverter().convert(request.requestBody)
-            : '';
-        final requestBodyMatches =
-            SearchHelper.findMatches(text: requestBodyPretty, query: query)
-                .length;
-        final requestBodyOffset = currentOffset;
-        currentOffset += requestBodyMatches;
-
-        final graphqlVarsPretty = request.graphqlRequestVars != null
-            ? JsonPrettyConverter().convert(request.graphqlRequestVars)
-            : '';
-        final graphqlVarsMatches =
-            SearchHelper.findMatches(text: graphqlVarsPretty, query: query)
-                .length;
-        final graphqlVarsOffset = currentOffset;
-        currentOffset += graphqlVarsMatches;
-
-        final responseBodyPretty = request.responseBody != null
-            ? JsonPrettyConverter().convert(request.responseBody)
-            : '';
-        final responseBodyMatches =
-            SearchHelper.findMatches(text: responseBodyPretty, query: query)
-                .length;
-        final responseBodyOffset = currentOffset;
-        currentOffset += responseBodyMatches;
+        final graphqlInfo = GraphQLHelper.parse(request.requestBody);
+        final graphqlQuery = graphqlInfo?.query ?? '';
 
         return Selector<InspectorController, int>(
           selector: (_, controller) => controller.currentMatchIndex,
+          // [currentMatchIndex] is still observed so the list rebuilds while
+          // navigating; the active match's scroll/orange highlight is handled
+          // by the inner widgets themselves.
           builder: (context, currentMatchIndex, _) {
-            final isHeadersActive = currentMatchIndex >= headersOffset &&
-                currentMatchIndex < headersOffset + headersMatches;
-            final isQueryParamsActive =
-                currentMatchIndex >= queryParamsOffset &&
-                    currentMatchIndex < queryParamsOffset + queryParamsMatches;
-            final isRequestBodyActive =
-                currentMatchIndex >= requestBodyOffset &&
-                    currentMatchIndex < requestBodyOffset + requestBodyMatches;
-            final isGraphqlActive = currentMatchIndex >= graphqlVarsOffset &&
-                currentMatchIndex < graphqlVarsOffset + graphqlVarsMatches;
-            final isResponseBodyActive = currentMatchIndex >=
-                    responseBodyOffset &&
-                currentMatchIndex < responseBodyOffset + responseBodyMatches;
+            // A section is expanded whenever it contains any match for the
+            // current query, so the highlighted text inside it (including the
+            // Response Body) is actually rendered. A collapsed [ExpansionTile]
+            // builds none of its children, so before this nothing inside a
+            // collapsed section could ever be highlighted.
+            final timeAndUrlHasMatches = scanner.timeAndUrlCount > 0;
+            final headersHasMatches = scanner.headersCount > 0;
+            final queryParamsHasMatches = scanner.queryParamsCount > 0;
+            final graphqlQueryHasMatches = scanner.graphqlQueryCount > 0;
+            final requestBodyHasMatches = scanner.requestBodyCount > 0;
+            final graphqlVarsHasMatches = scanner.graphqlVarsCount > 0;
+            final responseBodyHasMatches = scanner.responseBodyCount > 0;
 
             return ListView(
               padding:
@@ -173,12 +135,15 @@ class RequestDetailsPage extends StatelessWidget {
               children: [
                 _buildExpandableSection(
                   context: context,
-                  txtCopy: JsonPrettyConverter().convert(request.url),
+                  txtCopy: JsonPrettyConverter().convert(graphqlInfo == null
+                      ? request.url
+                      : graphqlInfo.operationName),
                   titleWidget: _buildRequestNameAndStatus(
                     method: request.requestMethod,
                     requestName: request.requestName,
                     statusCode: request.statusCode,
                   ),
+                  forceExpanded: timeAndUrlHasMatches,
                   children: [
                     _buildRequestSentTimeAndDuration(
                       request.sentTime,
@@ -190,25 +155,28 @@ class RequestDetailsPage extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (request.headers != null)
+                if (_hasData(request.headers))
                   _buildExpandableSection(
                     context: context,
-                    txtCopy: headersPretty,
+                    txtCopy: JsonPrettyConverter().convert(request.headers),
                     title: 'Headers',
+                    forceExpanded: headersHasMatches,
                     children: _buildDataBlock(
                       request.headers,
                       isTreeView: state.isTreeView,
                       isDarkMode: state.isDarkMode,
                       searchQuery: query,
                       matchIndexOffset: headersOffset,
-                      expandChildren: state.expandChildren || isHeadersActive,
+                      expandChildren: state.expandChildren || headersHasMatches,
                     ),
                   ),
-                if (request.queryParameters != null)
+                if (_hasData(request.queryParameters))
                   _buildExpandableSection(
                     context: context,
-                    txtCopy: queryParamsPretty,
+                    txtCopy:
+                        JsonPrettyConverter().convert(request.queryParameters),
                     title: 'Query Parameters',
+                    forceExpanded: queryParamsHasMatches,
                     children: _buildDataBlock(
                       request.queryParameters,
                       isTreeView: state.isTreeView,
@@ -216,15 +184,32 @@ class RequestDetailsPage extends StatelessWidget {
                       searchQuery: query,
                       matchIndexOffset: queryParamsOffset,
                       expandChildren:
-                          state.expandChildren || isQueryParamsActive,
+                          state.expandChildren || queryParamsHasMatches,
                     ),
                   ),
-                if (request.requestBody != null)
+                if (graphqlInfo != null)
                   _buildExpandableSection(
                     context: context,
-                    txtCopy: requestBodyPretty,
+                    txtCopy: graphqlQuery,
+                    title: 'GraphQL Query',
+                    forceExpanded: graphqlQueryHasMatches,
+                    children: _buildGraphqlQueryBlock(
+                      graphqlQuery,
+                      isTreeView: state.isTreeView,
+                      isDarkMode: state.isDarkMode,
+                      searchQuery: query,
+                      matchIndexOffset: graphqlQueryOffset,
+                      expandChildren:
+                          state.expandChildren || graphqlQueryHasMatches,
+                    ),
+                  ),
+                if (graphqlInfo == null && _hasData(request.requestBody))
+                  _buildExpandableSection(
+                    context: context,
+                    txtCopy: JsonPrettyConverter().convert(request.requestBody),
                     title:
                         'Request Body${request.requestBody is FormData ? " (Form Data)" : ""}',
+                    forceExpanded: requestBodyHasMatches,
                     children: _buildDataBlock(
                       request.requestBody,
                       isTreeView: state.isTreeView,
@@ -232,28 +217,33 @@ class RequestDetailsPage extends StatelessWidget {
                       searchQuery: query,
                       matchIndexOffset: requestBodyOffset,
                       expandChildren:
-                          state.expandChildren || isRequestBodyActive,
+                          state.expandChildren || requestBodyHasMatches,
                     ),
                   ),
-                if (request.graphqlRequestVars != null)
+                if (_hasData(request.graphqlRequestVars))
                   _buildExpandableSection(
                     context: context,
-                    txtCopy: graphqlVarsPretty,
+                    txtCopy: JsonPrettyConverter()
+                        .convert(request.graphqlRequestVars),
                     title: 'GraphQL Request Vars',
+                    forceExpanded: graphqlVarsHasMatches,
                     children: _buildDataBlock(
                       request.graphqlRequestVars,
                       isTreeView: state.isTreeView,
                       isDarkMode: state.isDarkMode,
                       searchQuery: query,
                       matchIndexOffset: graphqlVarsOffset,
-                      expandChildren: state.expandChildren || isGraphqlActive,
+                      expandChildren:
+                          state.expandChildren || graphqlVarsHasMatches,
                     ),
                   ),
-                if (request.responseBody != null)
+                if (_hasData(request.responseBody))
                   _buildExpandableSection(
                     context: context,
-                    txtCopy: responseBodyPretty,
+                    txtCopy:
+                        JsonPrettyConverter().convert(request.responseBody),
                     title: 'Response Body',
+                    forceExpanded: responseBodyHasMatches,
                     children: _buildDataBlock(
                       request.responseBody,
                       isTreeView: state.isTreeView,
@@ -261,7 +251,7 @@ class RequestDetailsPage extends StatelessWidget {
                       searchQuery: query,
                       matchIndexOffset: responseBodyOffset,
                       expandChildren:
-                          state.expandChildren || isResponseBodyActive,
+                          state.expandChildren || responseBodyHasMatches,
                     ),
                   ),
               ],
@@ -279,8 +269,8 @@ class RequestDetailsPage extends StatelessWidget {
     String? title,
     required String txtCopy,
     Widget? titleWidget,
+    bool forceExpanded = false,
     required List<Widget> children,
-    bool initiallyExpanded = true,
   }) {
     final theme = Theme.of(context);
     final cardColor = theme.cardColor;
@@ -292,61 +282,65 @@ class RequestDetailsPage extends StatelessWidget {
         decoration: BoxDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: borderColor.withOpacity(0.3)),
+          border: Border.all(color: borderColor.withValues(alpha: 0.3)),
           boxShadow: [
             BoxShadow(
-              color: theme.shadowColor.withOpacity(0.05),
+              color: theme.shadowColor.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: Theme(
-          data: theme.copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            key: initiallyExpanded ? ValueKey('${title}_expanded') : null,
-            initiallyExpanded: initiallyExpanded,
-            tilePadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 10,
-            ),
-            childrenPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 8,
-            ),
-            expandedAlignment: Alignment.topLeft,
-            title: Row(
-              children: [
-                Expanded(
-                  child: titleWidget ??
-                      Text(
-                        title ?? '',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+        child: Material(
+          type: MaterialType.transparency,
+          child: Theme(
+            data: theme.copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              key: ValueKey(
+                  '${title}_${forceExpanded ? 'expanded' : 'collapsed'}'),
+              initiallyExpanded: forceExpanded,
+              tilePadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 10,
+              ),
+              childrenPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 8,
+              ),
+              expandedAlignment: Alignment.topLeft,
+              title: Row(
+                children: [
+                  Expanded(
+                    child: titleWidget ??
+                        Text(
+                          title ?? '',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                ),
-                InkWell(
-                  child: const Icon(Icons.copy, color: Colors.grey, size: 20),
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: txtCopy));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Copied to clipboard')),
-                    );
-                  },
+                  ),
+                  InkWell(
+                    child: const Icon(Icons.copy, color: Colors.grey, size: 20),
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: txtCopy));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Copied to clipboard')),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              children: [
+                Container(
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: children,
+                  ),
                 ),
               ],
             ),
-            children: [
-              Container(
-                alignment: Alignment.centerLeft,
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: children,
-                ),
-              ),
-            ],
           ),
         ),
       ),
@@ -361,19 +355,13 @@ class RequestDetailsPage extends StatelessWidget {
     required bool isDarkMode,
     required int matchIndexOffset,
   }) {
-    final sentTimeText = InspectorHelper.extractTimeText(sentTime);
-    var text = 'Sent at: $sentTimeText';
-
-    if (receivedTime != null) {
-      final durationText = InspectorHelper.calculateDuration(
-        sentTime,
-        receivedTime,
-      );
-      final receivedTimeText = InspectorHelper.extractTimeText(receivedTime);
-      text += '\nReceived at: $receivedTimeText\nDuration: $durationText';
-    }
-
-    text += '\n\nURL: $url';
+    // Reuse the scanner's builder so the rendered text is identical to the text
+    // its match count was computed from (keeping the offsets aligned).
+    final text = RequestSearchScanner.buildTimeAndUrlText(
+      sentTime: sentTime,
+      receivedTime: receivedTime,
+      url: url,
+    );
 
     return Padding(
       padding: const EdgeInsets.all(6.0),
@@ -385,6 +373,71 @@ class RequestDetailsPage extends StatelessWidget {
         style: const TextStyle(fontSize: 16.0),
       ),
     );
+  }
+
+  bool _hasData(dynamic data) {
+    if (data == null) return false;
+    if (data is Map) return data.isNotEmpty;
+    if (data is List) return data.isNotEmpty;
+    if (data is String) return data.trim().isNotEmpty;
+    return true;
+  }
+
+  List<Widget> _buildGraphqlQueryBlock(
+    String query, {
+    required bool isTreeView,
+    required bool isDarkMode,
+    required String searchQuery,
+    required int matchIndexOffset,
+    required bool expandChildren,
+  }) {
+    if (query.trim().isEmpty) return [];
+
+    // In tree mode, render the GraphQL document as a collapsible tree (like
+    // [JsonTreeView]) so its selection sets can be expanded/collapsed. A GraphQL
+    // document is not JSON, so it has its own dedicated tree widget.
+    if (isTreeView) {
+      return [
+        GraphqlTreeView(
+          query,
+          isDarkMode: isDarkMode,
+          searchQuery: searchQuery,
+          matchIndexOffset: matchIndexOffset,
+          expandChildren: expandChildren,
+        ),
+      ];
+    }
+
+    // Otherwise it is rendered as plain (line-by-line) highlighted text.
+    final lines = query.split('\n');
+    final children = <Widget>[];
+    var currentOffset = matchIndexOffset;
+
+    for (final line in lines) {
+      final matchesCount =
+          SearchHelper.findMatches(text: line, query: searchQuery).length;
+
+      children.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 1.0),
+          child: HighlightedText(
+            text: line,
+            searchQuery: searchQuery,
+            isDarkMode: isDarkMode,
+            matchIndexOffset: currentOffset,
+          ),
+        ),
+      );
+
+      currentOffset += matchesCount;
+    }
+
+    return [
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
+    ];
   }
 
   List<Widget> _buildDataBlock(

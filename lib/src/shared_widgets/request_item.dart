@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../requests_inspector.dart';
+import '../../requests_inspector_plus.dart';
 import '../helpers/inspector_helper.dart';
 
 class RequestItemWidget extends StatelessWidget {
@@ -66,9 +66,13 @@ class RequestItemWidget extends StatelessWidget {
     }
     // This theme data copy will implicitly update if the main MaterialApp's theme changes,
     // as it's rebuilding as part of the _InspectorState's build method
-    return Theme(
-      data: Theme.of(context).copyWith(colorScheme: const ColorScheme.light()),
-      child: child,
+    return Material(
+      type: MaterialType.transparency,
+      child: Theme(
+        data:
+            Theme.of(context).copyWith(colorScheme: const ColorScheme.light()),
+        child: child,
+      ),
     );
   }
 }

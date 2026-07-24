@@ -14,7 +14,7 @@ class JsonPrettyConverter {
 
   static late final JsonEncoder _encoder;
 
-  dynamic convert(text) {
+  dynamic convert(dynamic text) {
     late final dynamic prettyprint;
 
     if (text is Map || text is String || text is List)
@@ -45,7 +45,7 @@ class JsonPrettyConverter {
     return _convertToPrettyJsonFromMapOrJson(map);
   }
 
-  String _convertToPrettyJsonFromMapOrJson(text) {
+  String _convertToPrettyJsonFromMapOrJson(dynamic text) {
     if (text is! Map) return _encoder.convert(text);
 
     text = {
