@@ -1,6 +1,6 @@
 name: requests_inspector_plus
 description: Flutter REST API and GraphQL request logger with capture control, sensitive-data masking, operation labels, and a shake-to-open inspector.
-version: 1.0.0
+version: 1.0.1
 homepage: https://github.com/dwikyhardi/requests_inspector
 repository: https://github.com/dwikyhardi/requests_inspector
 # we can add screenshots here using screenshots key

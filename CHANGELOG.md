@@ -1,3 +1,7 @@
+## 1.0.1
+
+- Update package metadata.
+
 ## 1.0.0
 
 - Renamed and published as `requests_inspector_plus`, a fork of [`requests_inspector`](https://github.com/Abdelazeem777/requests_inspector) by Abdelazeem Kuratem (MIT). Update your imports to `package:requests_inspector_plus/requests_inspector_plus.dart`.
