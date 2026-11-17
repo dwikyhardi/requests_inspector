@@ -1,0 +1,39 @@
+name: Publish requests_inspector_plus
+
+on:
+  push:
+    tags:
+      - 'requests_inspector_plus-v*'
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify-main:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require a matching release tag from main
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor HEAD origin/main
+          version="$(awk '/^version:/ {print $2; exit}' pubspec.yaml)"
+          test "$RELEASE_TAG" = "requests_inspector_plus-v$version"
+
+  publish:
+    needs: verify-main
+    permissions:
+      contents: read
+      id-token: write
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
+    with:
+      sdk: '3.14.0'
+      use-flutter: true

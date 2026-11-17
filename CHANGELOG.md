@@ -1,3 +1,8 @@
+## 1.1.0
+
+- Add GitHub Actions CI, automatic version tagging after successful CI on `main`, and OIDC publishing to pub.dev.
+- Migrate inspector UI, exported stopper dialogs and example to `material_ui` ^1.11.1 with `cupertino_ui` ^1.1.7 (Flutter >=3.47.0, Dart >=3.13.0). Modern host apps no longer need `MaterialUiCompatibilityBridge` for stopper dialogs; model and stopper callback APIs are unchanged.
+
 ## 1.0.1
 
 - Update package metadata.

@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:requests_inspector_plus/src/shake.dart';
 import 'package:requests_inspector_plus/src/stopper_filter.dart';
 import 'package:share_plus/share_plus.dart';
