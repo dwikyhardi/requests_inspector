@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:requests_inspector_plus/requests_inspector_plus.dart';
 import 'package:requests_inspector_plus/src/json_pretty_converter.dart';

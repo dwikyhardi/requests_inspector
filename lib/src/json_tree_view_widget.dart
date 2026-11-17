@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'shared_widgets/highlighted_text.dart';
 import 'helpers/search_helper.dart';
 import 'inspector_controller.dart';

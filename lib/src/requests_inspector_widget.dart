@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:requests_inspector_plus/src/shared_widgets/inspector.dart';
 import '../requests_inspector_plus.dart';

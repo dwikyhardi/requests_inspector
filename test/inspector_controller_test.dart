@@ -10,7 +10,7 @@ void main() {
     setUp(() {
       inspectorController = InspectorController(
         enabled: true,
-        showInspectorOn: ShowInspectorOn.Both,
+        showInspectorOn: ShowInspectorOn.None,
       );
       inspectorController.clearAllRequests();
     });

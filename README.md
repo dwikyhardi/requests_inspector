@@ -47,6 +47,30 @@ The HAR format includes complete request/response details, headers, timing infor
 
 ## `Setup`
 
+Requires Flutter >=3.47.0 and Dart >=3.13.0. Import
+`package:material_ui/material_ui.dart` for `MaterialApp`, widgets, themes and
+Material callbacks instead of `package:flutter/material.dart`. The inspector's
+own app and exported stopper dialogs use `material_ui` ^1.11.1; they work under
+a modern `MaterialApp` without `MaterialUiCompatibilityBridge`. No theme types
+are re-exported by this package. Request/response models, stopper callbacks and
+the host `GlobalKey<NavigatorState>` API are unchanged.
+
+For localized hosts, use `GlobalMaterialLocalizations.delegates` from
+`material_ui`, together with your `supportedLocales`. Stopper routes use the
+host's localizations and navigator while keeping the inspector's selected
+light/dark theme and left-to-right editor layout. The inspector's own app
+continues to use its independent theme and default English localizations.
+There are no direct Cupertino widgets to migrate; `cupertino_ui` ^1.1.7 is
+declared for Material's Cupertino theming and adaptive controls.
+
+To test local changes before publication, override the app's dependency:
+
+```yaml
+dependency_overrides:
+  requests_inspector_plus:
+    path: ../requests_inspector
+```
+
 First, add it at the top of your `MaterialApp` with `enabled: true`.
 
 ```dart
@@ -410,6 +434,34 @@ We welcome contributions from everyone\! Here's how you can help:
 To add yourself as a contributor, simply follow the contribution guidelines and your efforts will be recognized here\!
 
 ---
+
+## Releasing
+
+GitHub Actions runs CI on pull requests and pushes to `main`, followed by
+automatic version tagging and OIDC publishing to
+pub.dev. CI tests the library, example and release script with Flutter 3.50.0.
+Existing analyzer info notices are allowed; errors and warnings fail CI.
+
+One-time setup:
+
+1. Add the repository secret `RELEASE_PAT`, using a token that can push tags to
+   `dwikyhardi/requests_inspector` (Contents: read/write). A tag pushed with the
+   default `GITHUB_TOKEN` cannot trigger the publishing workflow.
+2. In the pub.dev package's automated publishing settings, authorize the GitHub
+   repository `dwikyhardi/requests_inspector` with tag pattern
+   `requests_inspector_plus-v{{version}}`. The publishing workflow is
+   `.github/workflows/publish.yml`; no pub.dev token secret is needed.
+
+To release, update `version` in `pubspec.yaml` and add its changelog entry, then
+merge to `main`. After CI succeeds, **Auto Tag Release** skips already published
+versions, validates an unpublished version with `flutter pub publish --dry-run`,
+and pushes `requests_inspector_plus-v<version>`. **Publish requests_inspector_plus**
+checks that the tag matches the pubspec and belongs to `main`, then publishes via
+the official Dart reusable workflow with OIDC.
+
+To retry tagging after fixing setup, manually run **Auto Tag Release** on `main`
+after CI has passed. If the tag already exists, rerun its failed publishing job
+instead; existing tags are never moved.
 
 ## Future plans:
 
