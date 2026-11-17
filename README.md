@@ -47,21 +47,17 @@ The HAR format includes complete request/response details, headers, timing infor
 
 ## `Setup`
 
-Requires Flutter >=3.47.0 and Dart >=3.13.0. Import
-`package:material_ui/material_ui.dart` for `MaterialApp`, widgets, themes and
-Material callbacks instead of `package:flutter/material.dart`. The inspector's
-own app and exported stopper dialogs use `material_ui` ^1.11.1; they work under
-a modern `MaterialApp` without `MaterialUiCompatibilityBridge`. No theme types
-are re-exported by this package. Request/response models, stopper callbacks and
-the host `GlobalKey<NavigatorState>` API are unchanged.
+Requires Flutter >=3.47.0 and Dart >=3.13.0. The inspector's own app and
+exported stopper dialogs use modern Material UI types. See the changelog for
+the import migration. They work under a modern `MaterialApp` without a
+compatibility bridge. No theme types are re-exported. Request/response models,
+stopper callbacks and the host `GlobalKey<NavigatorState>` API are unchanged.
 
-For localized hosts, use `GlobalMaterialLocalizations.delegates` from
-`material_ui`, together with your `supportedLocales`. Stopper routes use the
+For localized hosts, configure `GlobalMaterialLocalizations.delegates` together
+with your `supportedLocales`. Stopper routes use the
 host's localizations and navigator while keeping the inspector's selected
 light/dark theme and left-to-right editor layout. The inspector's own app
 continues to use its independent theme and default English localizations.
-There are no direct Cupertino widgets to migrate; `cupertino_ui` ^1.1.7 is
-declared for Material's Cupertino theming and adaptive controls.
 
 To test local changes before publication, override the app's dependency:
 
